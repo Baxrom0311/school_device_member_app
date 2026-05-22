@@ -1,0 +1,499 @@
+import { ScheduleCard } from '@/components/schedule-card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card'
+import {
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { deviceApi, type Device } from '@/lib/device-api'
+import { useAuthStore } from '@/stores/auth-store'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+	Calendar,
+	Check,
+	Clock,
+	Cpu,
+	Settings,
+	Volume2,
+	Wifi,
+	WifiOff,
+} from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import { z } from 'zod'
+
+export const Route = createFileRoute('/_authenticated/')({
+	component: DashboardPage,
+})
+
+function DashboardPage() {
+	const { user } = useAuthStore()
+
+	const {
+		data: devicesData,
+		isLoading,
+		error,
+	} = useQuery({
+		queryKey: ['my-devices'],
+		queryFn: deviceApi.getMyDevices,
+		staleTime: 1000 * 15, // 15 seconds for device status freshness
+	})
+
+	const device = devicesData?.results?.[0] // Only one device per user
+	const hasDevice = !!device
+
+	if (isLoading) {
+		return <DashboardSkeleton />
+	}
+
+	if (error) {
+		return (
+			<Card className='max-w-2xl mx-auto'>
+				<CardContent className='pt-6'>
+					<p className='text-center text-destructive'>
+						Xatolik yuz berdi. Sahifani yangilang.
+					</p>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	// No device - show claim page
+	if (!hasDevice) {
+		return (
+			<ClaimDeviceCard
+				userName={user?.first_name || user?.username}
+				organizationName={user?.organization_name}
+			/>
+		)
+	}
+
+	// Has device - show device management
+	return <DeviceDashboard device={device} />
+}
+
+// ============== Device Dashboard ==============
+function DeviceDashboard({ device }: { device: Device }) {
+	const navigate = useNavigate()
+
+	const ringMutation = useMutation({
+		mutationFn: () => deviceApi.ringBell(device.id),
+		onSuccess: () => {
+			toast.success("Qo'ng'iroq chalindi!")
+		},
+		onError: () => {
+			toast.error("Qo'ng'iroq chalinmadi. Qurilma offline bo'lishi mumkin.")
+		},
+	})
+
+	return (
+		<div className='space-y-6'>
+			{/* Header */}
+			<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+				<div>
+					<h1 className='text-2xl font-bold tracking-tight'>
+						{device.school_name || device.name || 'Mening qurilmam'}
+					</h1>
+					<p className='font-mono text-sm text-muted-foreground'>
+						{device.device_id}
+					</p>
+				</div>
+				<Badge
+					variant={device.status === 'online' ? 'default' : 'secondary'}
+					className='w-fit text-sm'
+				>
+					{device.status === 'online' ? (
+						<>
+							<Wifi className='mr-1 h-4 w-4' /> Online
+						</>
+					) : (
+						<>
+							<WifiOff className='mr-1 h-4 w-4' /> Offline
+						</>
+					)}
+				</Badge>
+			</div>
+
+			{/* Quick Actions */}
+			<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+				<Card
+					role='button'
+					tabIndex={0}
+					className='cursor-pointer transition-colors hover:bg-accent/50'
+					onClick={() =>
+						!ringMutation.isPending &&
+						device.status === 'online' &&
+						ringMutation.mutate()
+					}
+					onKeyDown={e => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							!ringMutation.isPending &&
+								device.status === 'online' &&
+								ringMutation.mutate()
+						}
+					}}
+				>
+					<CardContent className='flex items-center gap-4 p-4'>
+						<div className='rounded-full bg-primary/10 p-2'>
+							<Volume2 className='h-5 w-5 text-primary' />
+						</div>
+						<div>
+							<p className='font-medium'>Qo'ng'iroq</p>
+							<p className='text-xs text-muted-foreground'>
+								{ringMutation.isPending ? 'Chalinmoqda...' : 'Hozir chalish'}
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card
+					role='button'
+					tabIndex={0}
+					className='cursor-pointer transition-colors hover:bg-accent/50'
+					onClick={() =>
+						document
+							.getElementById('schedule-section')
+							?.scrollIntoView({ behavior: 'smooth' })
+					}
+					onKeyDown={e => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							document
+								.getElementById('schedule-section')
+								?.scrollIntoView({ behavior: 'smooth' })
+						}
+					}}
+				>
+					<CardContent className='flex items-center gap-4 p-4'>
+						<div className='rounded-full bg-blue-500/10 p-2'>
+							<Calendar className='h-5 w-5 text-blue-500' />
+						</div>
+						<div>
+							<p className='font-medium'>Jadval</p>
+							<p className='text-xs text-muted-foreground'>
+								Qo'ng'iroq vaqtlari
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card
+					role='button'
+					tabIndex={0}
+					className='cursor-pointer transition-colors hover:bg-accent/50'
+				>
+					<CardContent className='flex items-center gap-4 p-4'>
+						<div className='rounded-full bg-green-500/10 p-2'>
+							<Clock className='h-5 w-5 text-green-500' />
+						</div>
+						<div>
+							<p className='font-medium'>Tarix</p>
+							<p className='text-xs text-muted-foreground'>Tez orada...</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card
+					role='button'
+					tabIndex={0}
+					className='cursor-pointer transition-colors hover:bg-accent/50'
+					onClick={() => navigate({ to: '/settings' })}
+					onKeyDown={e => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							navigate({ to: '/settings' })
+						}
+					}}
+				>
+					<CardContent className='flex items-center gap-4 p-4'>
+						<div className='rounded-full bg-orange-500/10 p-2'>
+							<Settings className='h-5 w-5 text-orange-500' />
+						</div>
+						<div>
+							<p className='font-medium'>Sozlamalar</p>
+							<p className='text-xs text-muted-foreground'>Profil</p>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Device Info */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Qurilma ma'lumotlari</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+						<div>
+							<p className='text-sm text-muted-foreground'>MAC Address</p>
+							<p className='font-mono font-medium'>{device.device_id}</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>Firmware</p>
+							<p className='font-medium'>
+								{device.firmware_version || "Noma'lum"}
+							</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>Oxirgi faollik</p>
+							<p className='font-medium'>
+								{device.last_seen
+									? new Date(device.last_seen).toLocaleString('uz-UZ')
+									: 'Hali ulanmagan'}
+							</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>Holati</p>
+							<p className='font-medium capitalize'>
+								{device.registration_status}
+							</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Schedule Section */}
+			<div id='schedule-section'>
+				<ScheduleCard device={device} />
+			</div>
+		</div>
+	)
+}
+
+// ============== Claim Device Schema ==============
+const claimSchema = z.object({
+	device_id: z
+		.string()
+		.min(1, 'MAC manzil kiritilishi shart')
+		.regex(
+			/^([0-9A-Fa-f]{2}[:-]?){5}([0-9A-Fa-f]{2})$|^[0-9A-Fa-f]{12}$/,
+			"MAC manzil formati noto'g'ri (masalan: AA:BB:CC:DD:EE:FF)"
+		),
+	device_name: z.string().optional(),
+})
+
+type ClaimFormData = z.infer<typeof claimSchema>
+
+// ============== Claim Device Card ==============
+interface ClaimDeviceCardProps {
+	userName?: string
+	organizationName?: string
+}
+
+function ClaimDeviceCard({ userName, organizationName }: ClaimDeviceCardProps) {
+	const queryClient = useQueryClient()
+	const [isLoading, setIsLoading] = useState(false)
+	const [claimedDevice, setClaimedDevice] = useState<any>(null)
+
+	const form = useForm<ClaimFormData>({
+		resolver: zodResolver(claimSchema),
+		defaultValues: {
+			device_id: '',
+			device_name: '',
+		},
+	})
+
+	const onSubmit = async (data: ClaimFormData) => {
+		setIsLoading(true)
+		try {
+			const response = await deviceApi.claimDevice(data)
+			setClaimedDevice(response.device)
+			toast.success("Qurilma muvaffaqiyatli qo'shildi!", {
+				description: response.message,
+			})
+		} catch (error: unknown) {
+			console.error('Claim error:', error)
+			if (error && typeof error === 'object' && 'response' in error) {
+				const axiosError = error as {
+					response?: { data?: { detail?: string; device_id?: string[] } }
+				}
+				const errorData = axiosError.response?.data
+				if (errorData?.detail) {
+					toast.error(errorData.detail)
+				} else if (errorData?.device_id) {
+					toast.error(errorData.device_id[0])
+				} else {
+					toast.error("Qurilmani qo'shishda xatolik")
+				}
+			} else {
+				toast.error('Tizimda xatolik yuz berdi')
+			}
+		} finally {
+			setIsLoading(false)
+		}
+	}
+
+	const handleGoToDashboard = () => {
+		setClaimedDevice(null)
+		queryClient.invalidateQueries({ queryKey: ['my-devices'] })
+	}
+
+	// Success state
+	if (claimedDevice) {
+		return (
+			<div className='flex min-h-[60vh] items-center justify-center'>
+				<Card className='w-full max-w-md'>
+					<CardHeader className='text-center'>
+						<div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900'>
+							<Check className='h-8 w-8 text-green-600 dark:text-green-400' />
+						</div>
+						<CardTitle className='text-xl'>
+							Qurilma muvaffaqiyatli qo'shildi!
+						</CardTitle>
+						<CardDescription>
+							Endi qurilmangizni boshqarishingiz mumkin.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className='space-y-4'>
+						<div className='rounded-lg border p-4'>
+							<div className='space-y-2 text-sm'>
+								<div className='flex justify-between'>
+									<span className='text-muted-foreground'>MAC Address:</span>
+									<span className='font-mono'>{claimedDevice.device_id}</span>
+								</div>
+								{claimedDevice.school_name && (
+									<div className='flex justify-between'>
+										<span className='text-muted-foreground'>Nomi:</span>
+										<span>{claimedDevice.school_name}</span>
+									</div>
+								)}
+								<div className='flex justify-between'>
+									<span className='text-muted-foreground'>Holati:</span>
+									<span className='capitalize'>{claimedDevice.status}</span>
+								</div>
+							</div>
+						</div>
+
+						<Button className='w-full' onClick={handleGoToDashboard}>
+							Boshqaruvga o'tish
+						</Button>
+					</CardContent>
+				</Card>
+			</div>
+		)
+	}
+
+	// Claim form
+	return (
+		<div className='flex min-h-[60vh] items-center justify-center'>
+			<Card className='w-full max-w-md'>
+				<CardHeader className='text-center'>
+					<div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10'>
+						<Cpu className='h-8 w-8 text-primary' />
+					</div>
+					<CardTitle className='text-xl'>
+						Xush kelibsiz{userName ? `, ${userName}` : ''}!
+					</CardTitle>
+					{organizationName && (
+						<p className='text-muted-foreground'>{organizationName}</p>
+					)}
+					<CardDescription>
+						Qurilmangiz ustidagi stikerdan MAC addressni kiriting.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Form {...form}>
+						<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+							<FormField
+								control={form.control}
+								name='device_id'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>MAC Address</FormLabel>
+										<FormControl>
+											<Input
+												placeholder='AA:BB:CC:DD:EE:FF'
+												className='font-mono'
+												{...field}
+												onChange={e => {
+													// Auto-format MAC address
+													let value = e.target.value
+														.toUpperCase()
+														.replace(/[^A-F0-9]/g, '')
+													if (value.length > 12) value = value.slice(0, 12)
+													const formatted =
+														value.match(/.{1,2}/g)?.join(':') || value
+													field.onChange(formatted)
+												}}
+											/>
+										</FormControl>
+										<FormDescription>
+											Qurilma ustidagi stikerdan MAC addressni kiriting
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name='device_name'
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Qurilma nomi (ixtiyoriy)</FormLabel>
+										<FormControl>
+											<Input
+												placeholder='Maktab qongiroq qurilmasi'
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<Button type='submit' className='w-full' disabled={isLoading}>
+								{isLoading ? 'Ulanmoqda...' : "Qurilmani qo'shish"}
+							</Button>
+						</form>
+					</Form>
+				</CardContent>
+			</Card>
+		</div>
+	)
+}
+
+function DashboardSkeleton() {
+	return (
+		<Card className='max-w-2xl mx-auto'>
+			<CardHeader>
+				<div className='flex items-center justify-between'>
+					<div className='space-y-2'>
+						<Skeleton className='h-6 w-40' />
+						<Skeleton className='h-4 w-60' />
+					</div>
+					<Skeleton className='h-6 w-16' />
+				</div>
+			</CardHeader>
+			<CardContent className='space-y-4'>
+				<div className='grid grid-cols-2 gap-4'>
+					{[1, 2, 3, 4].map(i => (
+						<div key={i} className='space-y-2'>
+							<Skeleton className='h-4 w-24' />
+							<Skeleton className='h-5 w-32' />
+						</div>
+					))}
+				</div>
+				<Skeleton className='h-10 w-full mt-4' />
+			</CardContent>
+		</Card>
+	)
+}
