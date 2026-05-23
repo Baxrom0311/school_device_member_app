@@ -23,7 +23,9 @@ import { useScheduleEditor } from '@/hooks/use-schedule-editor'
 import { deviceApi } from '@/lib/device-api'
 import { calculateDuration } from '@/lib/schedule-utils'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { RouteErrorBoundary } from '@/components/route-error-boundary'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
 	AlertCircle,
@@ -40,6 +42,9 @@ import {
 
 export const Route = createFileRoute('/_authenticated/schedules')({
 	component: SchedulesPage,
+	errorComponent: ({ error, reset }) => (
+		<RouteErrorBoundary error={error} reset={reset} />
+	),
 })
 
 function SchedulesPage() {
@@ -76,6 +81,9 @@ function SchedulesPage() {
 		handleSave,
 		handleSync,
 	} = useScheduleEditor({ deviceId: device?.id ?? '', schedule })
+
+	const { user } = useAuthStore()
+	const canEdit = user?.role === 'ADMIN' || user?.role === 'SCHOOL_ADMIN'
 
 	const isLoading = isLoadingDevices || isLoadingSchedule
 
@@ -200,6 +208,7 @@ function SchedulesPage() {
 									id='schedule-active'
 									checked={isActive}
 									onCheckedChange={setIsActive}
+									disabled={!canEdit}
 								/>
 								<Label
 									htmlFor='schedule-active'
@@ -213,6 +222,7 @@ function SchedulesPage() {
 				</CardHeader>
 
 				<CardContent className='p-4'>
+					{canEdit && (
 					<div className='mb-4 flex gap-2'>
 						<ScheduleGeneratorDialog onGenerate={handleGeneratedSchedule} />
 						{pairs.length > 0 && (
@@ -227,6 +237,7 @@ function SchedulesPage() {
 							</Button>
 						)}
 					</div>
+					)}
 
 					{pairs.length > 0 ? (
 						<div className='space-y-2'>
@@ -261,6 +272,7 @@ function SchedulesPage() {
 												onChange={e =>
 													handlePairChange(index, 'entry', e.target.value)
 												}
+												disabled={!canEdit}
 												className={cn(
 													'h-10 border-green-200 bg-green-50/50 text-center font-mono focus:border-green-500 focus:ring-green-500 dark:border-green-900 dark:bg-green-950/30',
 													!pair.entry && 'border-dashed'
@@ -279,6 +291,7 @@ function SchedulesPage() {
 												onChange={e =>
 													handlePairChange(index, 'exit', e.target.value)
 												}
+												disabled={!canEdit}
 												className={cn(
 													'h-10 border-red-200 bg-red-50/50 text-center font-mono focus:border-red-500 focus:ring-red-500 dark:border-red-900 dark:bg-red-950/30',
 													!pair.exit && 'border-dashed',
@@ -306,6 +319,7 @@ function SchedulesPage() {
 													</Tooltip>
 												</TooltipProvider>
 											)}
+											{canEdit && (
 											<Button
 												type='button'
 												variant='ghost'
@@ -315,6 +329,7 @@ function SchedulesPage() {
 											>
 												<Trash2 className='h-4 w-4 text-muted-foreground hover:text-destructive' />
 											</Button>
+											)}
 										</div>
 									</div>
 								)
@@ -325,8 +340,9 @@ function SchedulesPage() {
 							<Clock className='mb-3 h-10 w-10 text-muted-foreground/50' />
 							<p className='mb-1 font-medium'>Jadval bo&apos;sh</p>
 							<p className='mb-4 text-sm text-muted-foreground'>
-								Jadval yarating yoki qo&apos;lda dars qo&apos;shing
+								{canEdit ? "Jadval yarating yoki qo'lda dars qo'shing" : "Jadval hali yaratilmagan"}
 							</p>
+							{canEdit && (
 							<div className='flex gap-2'>
 								<ScheduleGeneratorDialog onGenerate={handleGeneratedSchedule} />
 								<Button variant='outline' size='sm' onClick={addPair}>
@@ -334,10 +350,11 @@ function SchedulesPage() {
 									Qo&apos;lda qo&apos;shish
 								</Button>
 							</div>
+							)}
 						</div>
 					)}
 
-					{pairs.length > 0 && (
+					{canEdit && pairs.length > 0 && (
 						<Button
 							type='button'
 							variant='outline'
@@ -350,6 +367,7 @@ function SchedulesPage() {
 						</Button>
 					)}
 
+					{canEdit && (
 					<div className='mt-4 flex gap-2'>
 						<Button
 							onClick={handleSave}
@@ -376,6 +394,7 @@ function SchedulesPage() {
 							</Button>
 						)}
 					</div>
+					)}
 
 					{hasChanges && schedule && (
 						<p className='mt-2 text-center text-xs text-muted-foreground'>

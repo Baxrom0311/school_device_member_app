@@ -1,7 +1,7 @@
 import apiClient from './api-client'
 
 // ============== Device Types ==============
-export type DeviceStatus = 'online' | 'offline' | 'active' | 'inactive'
+export type DeviceStatus = 'active' | 'inactive' | 'maintenance' | 'decommissioned'
 export type RegistrationStatus = 'unregistered' | 'pending' | 'registered'
 
 export interface Device {
@@ -53,6 +53,7 @@ export interface Schedule {
 	times_count: number
 	is_active: boolean
 	timezone: string
+	version: number
 	synced_at: string | null
 	sync_pending: boolean
 	created_at: string

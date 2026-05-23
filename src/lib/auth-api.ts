@@ -45,7 +45,7 @@ export interface User {
 	first_name: string
 	last_name: string
 	avatar: string | null
-	role: 'ADMIN' | 'USER'
+	role: 'ADMIN' | 'SCHOOL_ADMIN' | 'USER'
 	is_active: boolean
 	is_verified: boolean
 	organization_name: string

@@ -1,7 +1,10 @@
 import apiClient from '@/lib/api-client'
 import { getCookie, removeCookie, setCookie } from '@/lib/cookies'
+import { navigateTo } from '@/lib/router'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
+const AUTH_LOGOUT_CHANNEL = 'member-auth-logout'
 
 export interface User {
 	id: string
@@ -13,7 +16,7 @@ export interface User {
 	organization_name: string
 	is_verified: boolean
 	is_active: boolean
-	role: 'ADMIN' | 'USER'
+	role: 'ADMIN' | 'SCHOOL_ADMIN' | 'USER'
 	created_at: string
 	updated_at: string
 }
@@ -80,9 +83,13 @@ export const useAuthStore = create<AuthState>()(
 				try {
 					const response = await apiClient.get('/auth/me/')
 					set({ user: response.data, isLoading: false })
-				} catch {
-					get().logout()
+				} catch (error: any) {
 					set({ isLoading: false })
+					// Only logout on 401/403 — server errors should not clear session
+					const status = error?.response?.status
+					if (status === 401 || status === 403) {
+						get().logout()
+					}
 				}
 			},
 
@@ -110,3 +117,25 @@ export const useAuthStore = create<AuthState>()(
 		}
 	)
 )
+
+// Cross-tab auth sync: logout in one tab → all tabs logout
+if (typeof window !== 'undefined') {
+	const bc = new BroadcastChannel(AUTH_LOGOUT_CHANNEL)
+	bc.onmessage = (event) => {
+		if (event.data === 'logout') {
+			removeCookie('access_token')
+			removeCookie('refresh_token')
+			useAuthStore.setState({ user: null, isAuthenticated: false })
+			navigateTo('/login', { replace: true })
+		}
+	}
+
+	// Patch logout to broadcast to other tabs
+	const originalLogout = useAuthStore.getState().logout
+	useAuthStore.setState({
+		logout: async () => {
+			await originalLogout()
+			bc.postMessage('logout')
+		},
+	})
+}

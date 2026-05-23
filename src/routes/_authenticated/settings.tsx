@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { authApi } from '@/lib/auth-api'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { RouteErrorBoundary } from '@/components/route-error-boundary'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Building2, LogOut, Mail, Save, User } from 'lucide-react'
 import { useState } from 'react'
@@ -20,6 +21,9 @@ import { toast } from 'sonner'
 
 export const Route = createFileRoute('/_authenticated/settings')({
 	component: SettingsPage,
+	errorComponent: ({ error, reset }) => (
+		<RouteErrorBoundary error={error} reset={reset} />
+	),
 })
 
 function SettingsPage() {

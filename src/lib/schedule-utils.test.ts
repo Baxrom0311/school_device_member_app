@@ -22,14 +22,14 @@ describe('timesToPairs', () => {
 		expect(timesToPairs([])).toEqual([])
 	})
 
-	it('sorts times before pairing', () => {
+	it('preserves order without sorting', () => {
 		const result = timesToPairs(['09:00', '08:00'])
-		expect(result).toEqual([{ entry: '08:00', exit: '09:00' }])
+		expect(result).toEqual([{ entry: '09:00', exit: '08:00' }])
 	})
 })
 
 describe('pairsToTimes', () => {
-	it('converts pairs back to sorted times', () => {
+	it('converts pairs back to times preserving order', () => {
 		const result = pairsToTimes([
 			{ entry: '08:00', exit: '08:45' },
 			{ entry: '09:00', exit: '09:45' },

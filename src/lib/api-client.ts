@@ -1,6 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { toast } from 'sonner'
 import { getCookie, removeCookie, setCookie } from './cookies'
+import { isTokenExpired } from './jwt'
+import { navigateTo } from './router'
 import { useAuthStore } from '@/stores/auth-store'
 
 const API_BASE_URL =
@@ -31,9 +33,44 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 	failedQueue = []
 }
 
-// Request interceptor - add auth token
-apiClient.interceptors.request.use(config => {
-	const token = getCookie('access_token')
+// Request interceptor - add auth token (with expiry pre-check)
+apiClient.interceptors.request.use(async config => {
+	let token = getCookie('access_token')
+
+	// If access token is expired, try refreshing before sending request
+	// Use the same isRefreshing mutex to prevent concurrent refresh attempts
+	if (token && isTokenExpired(token) && !config.url?.includes('/auth/')) {
+		if (isRefreshing) {
+			// Wait for the in-flight refresh to complete
+			token = await new Promise<string | null>((resolve, reject) => {
+				failedQueue.push({
+					resolve: (t) => resolve(t as string),
+					reject,
+				})
+			})
+		} else {
+			const refreshToken = getCookie('refresh_token')
+			if (refreshToken && !isTokenExpired(refreshToken)) {
+				isRefreshing = true
+				try {
+					const response = await axios.post(
+						`${API_BASE_URL}/auth/refresh/`,
+						{ refresh: refreshToken }
+					)
+					token = response.data.access
+					setCookie('access_token', token!)
+					useAuthStore.setState({ isAuthenticated: true })
+					processQueue(null, token)
+				} catch {
+					processQueue(new Error('refresh failed'), null)
+					// Let the response interceptor handle 401
+				} finally {
+					isRefreshing = false
+				}
+			}
+		}
+	}
+
 	if (token) {
 		config.headers.Authorization = `Bearer ${token}`
 	}
@@ -70,8 +107,8 @@ apiClient.interceptors.response.use(
 			if (!refreshToken) {
 				removeCookie('access_token')
 				removeCookie('refresh_token')
-				localStorage.removeItem('member-auth-storage')
-				useAuthStore.getState().logout()
+				useAuthStore.setState({ user: null, isAuthenticated: false })
+				navigateTo('/login', { replace: true })
 				return Promise.reject(error)
 			}
 
@@ -82,6 +119,7 @@ apiClient.interceptors.response.use(
 				)
 				const { access } = response.data
 				setCookie('access_token', access)
+				useAuthStore.setState({ isAuthenticated: true })
 				processQueue(null, access)
 				originalRequest.headers.Authorization = `Bearer ${access}`
 				return apiClient(originalRequest)
@@ -89,8 +127,8 @@ apiClient.interceptors.response.use(
 				processQueue(refreshError as Error, null)
 				removeCookie('access_token')
 				removeCookie('refresh_token')
-				localStorage.removeItem('member-auth-storage')
-				useAuthStore.getState().logout()
+				useAuthStore.setState({ user: null, isAuthenticated: false })
+				navigateTo('/login', { replace: true })
 				return Promise.reject(refreshError)
 			} finally {
 				isRefreshing = false

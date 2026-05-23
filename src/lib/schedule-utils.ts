@@ -7,11 +7,10 @@ export interface LessonPair {
 
 export function timesToPairs(times: string[]): LessonPair[] {
 	const pairs: LessonPair[] = []
-	const sorted = [...times].sort()
-	for (let i = 0; i < sorted.length; i += 2) {
+	for (let i = 0; i < times.length; i += 2) {
 		pairs.push({
-			entry: sorted[i] || '',
-			exit: sorted[i + 1] || '',
+			entry: times[i] || '',
+			exit: times[i + 1] || '',
 		})
 	}
 	return pairs
@@ -23,7 +22,7 @@ export function pairsToTimes(pairs: LessonPair[]): string[] {
 		if (pair.entry) times.push(pair.entry)
 		if (pair.exit) times.push(pair.exit)
 	})
-	return times.sort()
+	return times
 }
 
 export function calculateDuration(entry: string, exit: string): number | null {

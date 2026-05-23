@@ -1,3 +1,4 @@
+import { NavigationProgress } from '@/components/navigation-progress'
 import { Button } from '@/components/ui/button'
 import {
 	Dialog,
@@ -11,10 +12,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authApi } from '@/lib/auth-api'
+import { getCookie } from '@/lib/cookies'
 import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { createFileRoute, Navigate, Outlet } from '@tanstack/react-router'
+import { createFileRoute, Link, Navigate, Outlet, redirect } from '@tanstack/react-router'
 import { Key, LogOut, User, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -22,7 +24,17 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 export const Route = createFileRoute('/_authenticated')({
+	beforeLoad: ({ location }) => {
+		if (!getCookie('access_token')) {
+			throw redirect({ to: '/login', search: { redirect: location.href } })
+		}
+	},
 	component: AuthenticatedLayout,
+	pendingComponent: () => (
+		<div className='min-h-screen flex items-center justify-center bg-background'>
+			<div className='animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full' />
+		</div>
+	),
 })
 
 const changePasswordSchema = z
@@ -205,33 +217,60 @@ function AuthenticatedLayout() {
 
 	return (
 		<div className='min-h-screen bg-background'>
+			<NavigationProgress />
 			<OfflineBanner />
 			<header className='border-b bg-card'>
 				<div className='container mx-auto px-4 h-16 flex items-center justify-between'>
-					<div className='flex items-center gap-2'>
-						<svg
-							className='h-8 w-8 text-primary'
-							viewBox='0 0 24 24'
-							fill='none'
-							stroke='currentColor'
-							strokeWidth='2'
-							strokeLinecap='round'
-							strokeLinejoin='round'
-						>
-							<path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
-							<path d='M13.73 21a2 2 0 0 1-3.46 0' />
-						</svg>
-						<span className='font-semibold text-lg'>School Bell</span>
+					<div className='flex items-center gap-6'>
+						<Link to='/' className='flex items-center gap-2'>
+							<svg
+								className='h-8 w-8 text-primary'
+								viewBox='0 0 24 24'
+								fill='none'
+								stroke='currentColor'
+								strokeWidth='2'
+								strokeLinecap='round'
+								strokeLinejoin='round'
+							>
+								<path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
+								<path d='M13.73 21a2 2 0 0 1-3.46 0' />
+							</svg>
+							<span className='font-semibold text-lg'>School Bell</span>
+						</Link>
+						<nav className='hidden sm:flex items-center gap-1'>
+							<Link
+								to='/'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+								activeOptions={{ exact: true }}
+							>
+								Bosh sahifa
+							</Link>
+							<Link
+								to='/schedules'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Jadval
+							</Link>
+							<Link
+								to='/settings'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Sozlamalar
+							</Link>
+						</nav>
 					</div>
 
 					<div className='flex items-center gap-4'>
-						<div className='flex items-center gap-2'>
+						<div className='hidden sm:flex items-center gap-2'>
 							<User className='h-4 w-4 text-muted-foreground' />
 							<span className='text-sm text-muted-foreground'>
 								{user?.first_name} {user?.last_name}
 							</span>
 						</div>
-						<div className='h-4 w-px bg-border' />
+						<div className='hidden sm:block h-4 w-px bg-border' />
 						<ChangePasswordDialog />
 						<div className='h-4 w-px bg-border' />
 						<button
@@ -241,7 +280,7 @@ function AuthenticatedLayout() {
 							className='flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors'
 						>
 							<LogOut className='h-4 w-4' />
-							Chiqish
+							<span className='hidden sm:inline'>Chiqish</span>
 						</button>
 					</div>
 				</div>

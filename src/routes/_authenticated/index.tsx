@@ -23,6 +23,7 @@ import { deviceApi, type Device } from '@/lib/device-api'
 import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RouteErrorBoundary } from '@/components/route-error-boundary'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
 	Calendar,
@@ -41,6 +42,9 @@ import { z } from 'zod'
 
 export const Route = createFileRoute('/_authenticated/')({
 	component: DashboardPage,
+	errorComponent: ({ error, reset }) => (
+		<RouteErrorBoundary error={error} reset={reset} />
+	),
 })
 
 function DashboardPage() {
@@ -54,6 +58,7 @@ function DashboardPage() {
 		queryKey: ['my-devices'],
 		queryFn: deviceApi.getMyDevices,
 		staleTime: 1000 * 15, // 15 seconds for device status freshness
+		refetchInterval: 30000, // Real-time status: refresh every 30s
 	})
 
 	const device = devicesData?.results?.[0] // Only one device per user
@@ -116,10 +121,10 @@ function DeviceDashboard({ device }: { device: Device }) {
 					</p>
 				</div>
 				<Badge
-					variant={device.status === 'online' ? 'default' : 'secondary'}
+					variant={device.status === 'active' ? 'default' : 'secondary'}
 					className='w-fit text-sm'
 				>
-					{device.status === 'online' ? (
+					{device.status === 'active' ? (
 						<>
 							<Wifi className='mr-1 h-4 w-4' /> Online
 						</>
@@ -136,17 +141,18 @@ function DeviceDashboard({ device }: { device: Device }) {
 				<Card
 					role='button'
 					tabIndex={0}
+					aria-label="Qo'ng'iroq chalish"
 					className='cursor-pointer transition-colors hover:bg-accent/50'
 					onClick={() =>
 						!ringMutation.isPending &&
-						device.status === 'online' &&
+						device.status === 'active' &&
 						ringMutation.mutate()
 					}
 					onKeyDown={e => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
 							!ringMutation.isPending &&
-								device.status === 'online' &&
+								device.status === 'active' &&
 								ringMutation.mutate()
 						}
 					}}
@@ -167,6 +173,7 @@ function DeviceDashboard({ device }: { device: Device }) {
 				<Card
 					role='button'
 					tabIndex={0}
+					aria-label="Jadval bo'limiga o'tish"
 					className='cursor-pointer transition-colors hover:bg-accent/50'
 					onClick={() =>
 						document
@@ -214,6 +221,7 @@ function DeviceDashboard({ device }: { device: Device }) {
 				<Card
 					role='button'
 					tabIndex={0}
+					aria-label="Sozlamalar sahifasiga o'tish"
 					className='cursor-pointer transition-colors hover:bg-accent/50'
 					onClick={() => navigate({ to: '/settings' })}
 					onKeyDown={e => {

@@ -1,3 +1,4 @@
+import './lib/sentry'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
@@ -5,6 +6,7 @@ import ReactDOM from 'react-dom/client'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from './components/error-boundary'
 import './index.css'
+import { setRouter } from './lib/router'
 import { routeTree } from './routeTree.gen'
 
 const queryClient = new QueryClient({
@@ -22,6 +24,9 @@ const router = createRouter({
 	defaultPreload: 'intent',
 	defaultPreloadStaleTime: 0,
 })
+
+// Register router for non-React navigation (api-client, auth-store)
+setRouter(router)
 
 declare module '@tanstack/react-router' {
 	interface Register {

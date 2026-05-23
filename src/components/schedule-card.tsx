@@ -21,6 +21,7 @@ import { useScheduleEditor } from '@/hooks/use-schedule-editor'
 import { deviceApi, type Device } from '@/lib/device-api'
 import { calculateDuration } from '@/lib/schedule-utils'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
 	AlertCircle,
@@ -57,6 +58,8 @@ interface ScheduleCardProps {
 
 export function ScheduleCard({ device }: ScheduleCardProps) {
 	const queryClient = useQueryClient()
+	const { user } = useAuthStore()
+	const canEdit = user?.role === 'ADMIN' || user?.role === 'SCHOOL_ADMIN'
 
 	const {
 		data: schedule,
@@ -167,6 +170,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 			</CardHeader>
 
 			<CardContent className='p-4'>
+				{canEdit && (
 				<div className='mb-4 flex gap-2'>
 					<ScheduleGeneratorDialog onGenerate={handleGeneratedSchedule} />
 					{pairs.length > 0 && (
@@ -181,6 +185,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 						</Button>
 					)}
 				</div>
+				)}
 
 				{pairs.length > 0 ? (
 					<div className='space-y-2'>
@@ -215,6 +220,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 											onChange={e =>
 												handlePairChange(index, 'entry', e.target.value)
 											}
+											disabled={!canEdit}
 											className={cn(
 												'h-10 border-green-200 bg-green-50/50 text-center font-mono focus:border-green-500 focus:ring-green-500 dark:border-green-900 dark:bg-green-950/30',
 												!pair.entry && 'border-dashed'
@@ -233,6 +239,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 											onChange={e =>
 												handlePairChange(index, 'exit', e.target.value)
 											}
+											disabled={!canEdit}
 											className={cn(
 												'h-10 border-red-200 bg-red-50/50 text-center font-mono focus:border-red-500 focus:ring-red-500 dark:border-red-900 dark:bg-red-950/30',
 												!pair.exit && 'border-dashed',
@@ -260,6 +267,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 												</Tooltip>
 											</TooltipProvider>
 										)}
+										{canEdit && (
 										<Button
 											type='button'
 											variant='ghost'
@@ -269,6 +277,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 										>
 											<Trash2 className='h-4 w-4 text-muted-foreground hover:text-destructive' />
 										</Button>
+										)}
 									</div>
 								</div>
 							)
@@ -279,8 +288,9 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 						<Clock className='mb-3 h-10 w-10 text-muted-foreground/50' />
 						<p className='mb-1 font-medium'>Jadval bo'sh</p>
 						<p className='mb-4 text-sm text-muted-foreground'>
-							Jadval yarating yoki qo'lda dars qo'shing
+							{canEdit ? "Jadval yarating yoki qo'lda dars qo'shing" : "Jadval hali yaratilmagan"}
 						</p>
+						{canEdit && (
 						<div className='flex gap-2'>
 							<ScheduleGeneratorDialog onGenerate={handleGeneratedSchedule} />
 							<Button variant='outline' size='sm' onClick={addPair}>
@@ -288,10 +298,11 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 								Qo'lda qo'shish
 							</Button>
 						</div>
+						)}
 					</div>
 				)}
 
-				{pairs.length > 0 && (
+				{canEdit && pairs.length > 0 && (
 					<Button
 						type='button'
 						variant='outline'
@@ -304,6 +315,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 					</Button>
 				)}
 
+				{canEdit && (
 				<div className='mt-4 flex gap-2'>
 					<Button
 						onClick={handleSave}
@@ -330,8 +342,9 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 						</Button>
 					)}
 				</div>
+				)}
 
-				{hasChanges && schedule && (
+				{canEdit && hasChanges && schedule && (
 					<p className='mt-2 text-center text-xs text-muted-foreground'>
 						Avval o'zgarishlarni saqlang, keyin sinxronlang
 					</p>
