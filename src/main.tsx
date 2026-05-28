@@ -34,6 +34,11 @@ declare module '@tanstack/react-router' {
 	}
 }
 
+// Register service worker for push notifications
+if ('serviceWorker' in navigator) {
+	navigator.serviceWorker.register('/sw-push.js').catch(() => {})
+}
+
 const rootElement = document.getElementById('root')
 if (rootElement && !rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement)

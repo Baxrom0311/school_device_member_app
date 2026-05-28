@@ -1,4 +1,5 @@
 import { ScheduleCard } from '@/components/schedule-card'
+import { WifiSetupGuide } from '@/components/wifi-setup-guide'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,19 +27,26 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RouteErrorBoundary } from '@/components/route-error-boundary'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
+	Activity,
+	AlertTriangle,
+	Battery,
 	Calendar,
 	Check,
 	Clock,
 	Cpu,
+	PartyPopper,
 	Settings,
+	ShieldAlert,
 	Volume2,
 	Wifi,
 	WifiOff,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { AlertDialog } from '@/components/ui/alert-dialog'
+import { useEmergencyWs } from '@/hooks/use-emergency-ws'
 
 export const Route = createFileRoute('/_authenticated/')({
 	component: DashboardPage,
@@ -97,19 +105,88 @@ function DashboardPage() {
 // ============== Device Dashboard ==============
 function DeviceDashboard({ device }: { device: Device }) {
 	const navigate = useNavigate()
+	const queryClient = useQueryClient()
+	const [ringConfirmOpen, setRingConfirmOpen] = useState(false)
+	const [emergencyConfirmOpen, setEmergencyConfirmOpen] = useState(false)
+	const { user } = useAuthStore()
+	const canTriggerEmergency = user?.role === 'ADMIN' || user?.role === 'SCHOOL_ADMIN'
+
+	const onAlert = useCallback(() => {
+		queryClient.invalidateQueries({ queryKey: ['alerts'] })
+	}, [queryClient])
+
+	useEmergencyWs({ onAlert, onResolved: onAlert })
+
+	const { data: todayHoliday } = useQuery({
+		queryKey: ['today-holiday'],
+		queryFn: async () => {
+			const today = new Date().toISOString().slice(0, 10)
+			const resp = await deviceApi.getHolidays(today)
+			return resp.results[0] ?? null
+		},
+		staleTime: 1000 * 60 * 60,
+	})
+
+	const [ringStatus, setRingStatus] = useState<string | null>(null)
 
 	const ringMutation = useMutation({
 		mutationFn: () => deviceApi.ringBell(device.id),
-		onSuccess: () => {
-			toast.success("Qo'ng'iroq chalindi!")
+		onSuccess: (data) => {
+			setRingConfirmOpen(false)
+			setRingStatus('sent')
+			toast.info("Yuborildi...")
+			deviceApi.pollCommandStatus(data.msg_id, (status) => {
+				setRingStatus(status)
+				if (status === 'delivered') {
+					toast.success("Chalindi ✅")
+				} else {
+					toast.error("Yetib bormadi ❌")
+				}
+				setTimeout(() => setRingStatus(null), 3000)
+			})
 		},
 		onError: () => {
+			setRingConfirmOpen(false)
 			toast.error("Qo'ng'iroq chalinmadi. Qurilma offline bo'lishi mumkin.")
+		},
+	})
+
+	const emergencyMutation = useMutation({
+		mutationFn: () => deviceApi.triggerEmergency(device.id, 'emergency_ring'),
+		onSuccess: () => {
+			setEmergencyConfirmOpen(false)
+			toast.success('Favqulodda signal yuborildi!')
+			queryClient.invalidateQueries({ queryKey: ['alerts'] })
+		},
+		onError: () => {
+			setEmergencyConfirmOpen(false)
+			toast.error("Signal yuborilmadi. Qurilma offline bo'lishi mumkin.")
 		},
 	})
 
 	return (
 		<div className='space-y-6'>
+			<AlertDialog
+				open={ringConfirmOpen}
+				onOpenChange={setRingConfirmOpen}
+				title="Qo'ng'iroq chalish"
+				description="Hozir qo'ng'iroq chalinsinmi?"
+				confirmLabel="Chalish"
+				onConfirm={() => ringMutation.mutate()}
+				loading={ringMutation.isPending}
+			/>
+
+			<AlertDialog
+				open={emergencyConfirmOpen}
+				onOpenChange={setEmergencyConfirmOpen}
+				title="⚠️ Favqulodda signal"
+				description="Barcha qurilmalarga favqulodda signal yuboriladi. Davom etasizmi?"
+				confirmLabel="Signal yuborish"
+				variant="destructive"
+				onConfirm={() => emergencyMutation.mutate()}
+				loading={emergencyMutation.isPending}
+			/>
+
 			{/* Header */}
 			<div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
 				<div>
@@ -136,6 +213,62 @@ function DeviceDashboard({ device }: { device: Device }) {
 				</Badge>
 			</div>
 
+			{/* Holiday banner */}
+			{todayHoliday && (
+				<Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950">
+					<CardContent className="flex items-center gap-3 p-4">
+						<PartyPopper className="h-5 w-5 text-yellow-600 shrink-0" />
+						<div>
+							<p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+								Bugun bayram: {todayHoliday.name}
+							</p>
+							<p className="text-xs text-yellow-600 dark:text-yellow-400">
+								Qo'ng'iroq avtomatik o'chirilgan
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* RTC Battery Warning */}
+			{device.rtc_battery_dead && (
+				<Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
+					<CardContent className="flex items-center gap-3 p-4">
+						<Battery className="h-5 w-5 text-red-600 shrink-0" />
+						<div>
+							<p className="text-sm font-medium text-red-800 dark:text-red-200">
+								⚠️ RTC batareykasi zaiflashgan
+							</p>
+							<p className="text-xs text-red-600 dark:text-red-400">
+								Qurilma vaqtni to'g'ri saqlay olmaydi. Batareykani almashtiring.
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Schedule Stale Warning */}
+			{device.schedule_stale && (
+				<Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
+					<CardContent className="flex items-center gap-3 p-4">
+						<Calendar className="h-5 w-5 text-orange-600 shrink-0" />
+						<div>
+							<p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+								Jadval 7+ kun sinxronlanmagan
+							</p>
+							<p className="text-xs text-orange-600 dark:text-orange-400">
+								Qurilma eski jadval bilan ishlayapti. Internet ulanishini tekshiring.
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* WiFi Setup Guide - shown when device is offline */}
+			{device.status !== 'active' && (
+				<WifiSetupGuide device={device} />
+			)}
+
 			{/* Quick Actions */}
 			<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
 				<Card
@@ -146,14 +279,14 @@ function DeviceDashboard({ device }: { device: Device }) {
 					onClick={() =>
 						!ringMutation.isPending &&
 						device.status === 'active' &&
-						ringMutation.mutate()
+						setRingConfirmOpen(true)
 					}
 					onKeyDown={e => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
 							!ringMutation.isPending &&
 								device.status === 'active' &&
-								ringMutation.mutate()
+								setRingConfirmOpen(true)
 						}
 					}}
 				>
@@ -164,7 +297,11 @@ function DeviceDashboard({ device }: { device: Device }) {
 						<div>
 							<p className='font-medium'>Qo'ng'iroq</p>
 							<p className='text-xs text-muted-foreground'>
-								{ringMutation.isPending ? 'Chalinmoqda...' : 'Hozir chalish'}
+								{ringMutation.isPending ? 'Yuborilmoqda...' :
+								 ringStatus === 'sent' ? 'Yuborildi...' :
+								 ringStatus === 'delivered' ? 'Chalindi ✅' :
+								 ringStatus === 'failed' || ringStatus === 'timeout' ? 'Yetib bormadi ❌' :
+								 'Hozir chalish'}
 							</p>
 						</div>
 					</CardContent>
@@ -205,7 +342,15 @@ function DeviceDashboard({ device }: { device: Device }) {
 				<Card
 					role='button'
 					tabIndex={0}
+					aria-label="Qo'ng'iroq tarixi"
 					className='cursor-pointer transition-colors hover:bg-accent/50'
+					onClick={() => navigate({ to: '/bell-logs' })}
+					onKeyDown={e => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							navigate({ to: '/bell-logs' })
+						}
+					}}
 				>
 					<CardContent className='flex items-center gap-4 p-4'>
 						<div className='rounded-full bg-green-500/10 p-2'>
@@ -213,7 +358,7 @@ function DeviceDashboard({ device }: { device: Device }) {
 						</div>
 						<div>
 							<p className='font-medium'>Tarix</p>
-							<p className='text-xs text-muted-foreground'>Tez orada...</p>
+							<p className='text-xs text-muted-foreground'>Qo'ng'iroqlar</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -241,6 +386,66 @@ function DeviceDashboard({ device }: { device: Device }) {
 						</div>
 					</CardContent>
 				</Card>
+
+				<Card
+					role='button'
+					tabIndex={0}
+					aria-label="Qurilma diagnostikasi"
+					className='cursor-pointer transition-colors hover:bg-accent/50'
+					onClick={() => navigate({ to: '/device-health' })}
+					onKeyDown={e => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							navigate({ to: '/device-health' })
+						}
+					}}
+				>
+					<CardContent className='flex items-center gap-4 p-4'>
+						<div className={`rounded-full p-2 ${device.rtc_battery_dead || device.schedule_stale ? 'bg-yellow-500/10' : 'bg-purple-500/10'}`}>
+							<Activity className={`h-5 w-5 ${device.rtc_battery_dead || device.schedule_stale ? 'text-yellow-500' : 'text-purple-500'}`} />
+						</div>
+						<div>
+							<p className='font-medium'>Diagnostika</p>
+							<p className='text-xs text-muted-foreground'>
+								{device.rtc_battery_dead ? 'RTC ⚠️' : device.schedule_stale ? 'Sinxron ⚠️' : 'Normal'}
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+
+				{canTriggerEmergency && (
+					<Card
+						role='button'
+						tabIndex={0}
+						aria-label="Favqulodda signal yuborish"
+						className='cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-900'
+						onClick={() =>
+							!emergencyMutation.isPending &&
+							device.status === 'active' &&
+							setEmergencyConfirmOpen(true)
+						}
+						onKeyDown={e => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault()
+								!emergencyMutation.isPending &&
+									device.status === 'active' &&
+									setEmergencyConfirmOpen(true)
+							}
+						}}
+					>
+						<CardContent className='flex items-center gap-4 p-4'>
+							<div className='rounded-full bg-red-500/10 p-2'>
+								<ShieldAlert className='h-5 w-5 text-red-500' />
+							</div>
+							<div>
+								<p className='font-medium text-red-700 dark:text-red-400'>Favqulodda</p>
+								<p className='text-xs text-muted-foreground'>
+									{device.status !== 'active' ? 'Qurilma offline' : 'Signal yuborish'}
+								</p>
+							</div>
+						</CardContent>
+					</Card>
+				)}
 			</div>
 
 			{/* Device Info */}
@@ -249,7 +454,7 @@ function DeviceDashboard({ device }: { device: Device }) {
 					<CardTitle>Qurilma ma'lumotlari</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+					<div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
 						<div>
 							<p className='text-sm text-muted-foreground'>MAC Address</p>
 							<p className='font-mono font-medium'>{device.device_id}</p>
@@ -269,9 +474,48 @@ function DeviceDashboard({ device }: { device: Device }) {
 							</p>
 						</div>
 						<div>
-							<p className='text-sm text-muted-foreground'>Holati</p>
-							<p className='font-medium capitalize'>
-								{device.registration_status}
+							<p className='text-sm text-muted-foreground'>Signal (RSSI)</p>
+							<p className='font-medium'>
+								{device.rssi != null ? (
+									<span className={device.rssi > -60 ? 'text-green-600' : device.rssi > -75 ? 'text-yellow-600' : 'text-red-600'}>
+										{device.rssi} dBm
+									</span>
+								) : "Noma'lum"}
+							</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>Uptime</p>
+							<p className='font-medium'>
+								{device.uptime_sec != null
+									? device.uptime_sec >= 3600
+										? `${Math.floor(device.uptime_sec / 3600)}s ${Math.floor((device.uptime_sec % 3600) / 60)}d`
+										: `${Math.floor(device.uptime_sec / 60)}d`
+									: "Noma'lum"}
+							</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>Xotira (Heap)</p>
+							<p className='font-medium'>
+								{device.free_heap != null
+									? `${(device.free_heap / 1024).toFixed(0)} KB`
+									: "Noma'lum"}
+							</p>
+						</div>
+						<div>
+							<p className='text-sm text-muted-foreground'>RTC holati</p>
+							<p className='font-medium'>
+								{device.rtc_battery_dead ? (
+									<span className='text-red-600 flex items-center gap-1'>
+										<AlertTriangle className='h-3.5 w-3.5' />
+										Batareya o'lgan
+									</span>
+								) : device.rtc_drift_sec != null && device.rtc_drift_sec > 300 ? (
+									<span className='text-yellow-600'>
+										Drift: {device.rtc_drift_sec}s
+									</span>
+								) : (
+									<span className='text-green-600'>Normal</span>
+								)}
 							</p>
 						</div>
 					</div>

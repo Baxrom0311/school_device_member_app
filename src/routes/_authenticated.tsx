@@ -1,5 +1,6 @@
 import { NavigationProgress } from '@/components/navigation-progress'
 import { Button } from '@/components/ui/button'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import {
 	Dialog,
 	DialogContent,
@@ -17,7 +18,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, Navigate, Outlet, redirect } from '@tanstack/react-router'
-import { Key, LogOut, User, WifiOff } from 'lucide-react'
+import { PushNotificationPrompt } from '@/components/push-notification-prompt'
+import { Bell, Activity, AlertTriangle as AlertTriangleNav, Calendar, Home, Key, LogOut, User, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -193,6 +195,7 @@ function OfflineBanner() {
 function AuthenticatedLayout() {
 	const { isAuthenticated, user, fetchUser, isLoading, checkAuth } =
 		useAuthStore()
+	const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
 	useEffect(() => {
 		// Recheck auth on mount
@@ -219,6 +222,7 @@ function AuthenticatedLayout() {
 		<div className='min-h-screen bg-background'>
 			<NavigationProgress />
 			<OfflineBanner />
+			<PushNotificationPrompt />
 			<header className='border-b bg-card'>
 				<div className='container mx-auto px-4 h-16 flex items-center justify-between'>
 					<div className='flex items-center gap-6'>
@@ -254,11 +258,46 @@ function AuthenticatedLayout() {
 								Jadval
 							</Link>
 							<Link
+								to='/bell-logs'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Tarix
+							</Link>
+							<Link
+								to='/holidays'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Bayramlar
+							</Link>
+							<Link
+								to='/alerts'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Signallar
+							</Link>
+							<Link
 								to='/settings'
 								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
 								activeProps={{ className: 'active' }}
 							>
 								Sozlamalar
+							</Link>
+							<Link
+								to='/provision'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								WiFi sozlash
+							</Link>
+							<Link
+								to='/device-health'
+								className='px-3 py-2 text-sm font-medium rounded-md transition-colors hover:bg-accent [&.active]:bg-accent [&.active]:text-accent-foreground'
+								activeProps={{ className: 'active' }}
+							>
+								Diagnostika
 							</Link>
 						</nav>
 					</div>
@@ -274,9 +313,7 @@ function AuthenticatedLayout() {
 						<ChangePasswordDialog />
 						<div className='h-4 w-px bg-border' />
 						<button
-							onClick={async () => {
-								await useAuthStore.getState().logout()
-							}}
+							onClick={() => setLogoutConfirmOpen(true)}
 							className='flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors'
 						>
 							<LogOut className='h-4 w-4' />
@@ -286,9 +323,68 @@ function AuthenticatedLayout() {
 				</div>
 			</header>
 
-			<main className='container mx-auto px-4 py-8'>
+			<AlertDialog
+				open={logoutConfirmOpen}
+				onOpenChange={setLogoutConfirmOpen}
+				title="Tizimdan chiqish"
+				description="Haqiqatan ham tizimdan chiqmoqchimisiz?"
+				confirmLabel="Chiqish"
+				variant="destructive"
+				onConfirm={async () => {
+					await useAuthStore.getState().logout()
+				}}
+			/>
+
+			<main className='container mx-auto px-4 py-8 pb-24 sm:pb-8'>
 				<Outlet />
 			</main>
+
+			{/* Mobile bottom navigation */}
+			<nav className='fixed bottom-0 left-0 right-0 z-50 border-t bg-card sm:hidden'>
+				<div className='flex items-center justify-around h-14'>
+					<Link
+						to='/'
+						className='flex flex-col items-center gap-0.5 text-xs text-muted-foreground [&.active]:text-primary'
+						activeProps={{ className: 'active' }}
+						activeOptions={{ exact: true }}
+					>
+						<Home className='h-5 w-5' />
+						Asosiy
+					</Link>
+					<Link
+						to='/schedules'
+						className='flex flex-col items-center gap-0.5 text-xs text-muted-foreground [&.active]:text-primary'
+						activeProps={{ className: 'active' }}
+					>
+						<Calendar className='h-5 w-5' />
+						Jadval
+					</Link>
+					<Link
+						to='/bell-logs'
+						className='flex flex-col items-center gap-0.5 text-xs text-muted-foreground [&.active]:text-primary'
+						activeProps={{ className: 'active' }}
+					>
+						<Bell className='h-5 w-5' />
+						Tarix
+					</Link>
+					<Link
+						to='/device-health'
+						className='flex flex-col items-center gap-0.5 text-xs text-muted-foreground [&.active]:text-primary'
+						activeProps={{ className: 'active' }}
+					>
+						<Activity className='h-5 w-5' />
+						Diagnostika
+					</Link>
+					<Link
+						to='/alerts'
+						className='flex flex-col items-center gap-0.5 text-xs text-muted-foreground [&.active]:text-primary'
+						activeProps={{ className: 'active' }}
+					>
+						<AlertTriangleNav className='h-5 w-5' />
+						Signallar
+					</Link>
+				</div>
+			</nav>
 		</div>
 	)
 }

@@ -53,6 +53,15 @@ describe('deviceApi', () => {
 		})
 	})
 
+	describe('getDevice', () => {
+		it('calls correct endpoint with device id', async () => {
+			mockGet.mockResolvedValue({ data: { id: 'd1', device_id: 'AABB' } })
+			const result = await deviceApi.getDevice('d1')
+			expect(mockGet).toHaveBeenCalledWith('/devices/d1/')
+			expect(result.id).toBe('d1')
+		})
+	})
+
 	describe('ringBell', () => {
 		it('sends ring command with default duration', async () => {
 			mockPost.mockResolvedValue({ data: {} })
@@ -105,6 +114,65 @@ describe('deviceApi', () => {
 			mockPost.mockResolvedValue({ data: {} })
 			await deviceApi.syncSchedule('s1')
 			expect(mockPost).toHaveBeenCalledWith('/schedules/s1/sync_to_device/')
+		})
+	})
+
+	describe('getBellLogs', () => {
+		it('calls member bell-logs endpoint with params', async () => {
+			mockGet.mockResolvedValue({ data: { count: 1, next: null, previous: null, results: [{ id: '1' }] } })
+			const result = await deviceApi.getBellLogs('d1', 2, '2026-01-01', '2026-01-31')
+			expect(mockGet).toHaveBeenCalledWith('/member/bell-logs/', {
+				params: { device: 'd1', page: 2, date_from: '2026-01-01', date_to: '2026-01-31' },
+			})
+			expect(result.count).toBe(1)
+		})
+
+		it('uses default page 1', async () => {
+			mockGet.mockResolvedValue({ data: { count: 0, next: null, previous: null, results: [] } })
+			await deviceApi.getBellLogs('d1')
+			expect(mockGet).toHaveBeenCalledWith('/member/bell-logs/', {
+				params: { device: 'd1', page: 1, date_from: undefined, date_to: undefined },
+			})
+		})
+	})
+
+	describe('getAlerts', () => {
+		it('calls member alerts endpoint', async () => {
+			mockGet.mockResolvedValue({ data: { count: 2, next: null, previous: null, results: [{ id: 'a1' }, { id: 'a2' }] } })
+			const result = await deviceApi.getAlerts(1)
+			expect(mockGet).toHaveBeenCalledWith('/member/alerts/', { params: { page: 1 } })
+			expect(result.count).toBe(2)
+		})
+	})
+
+	describe('getHolidays', () => {
+		it('calls member holidays endpoint', async () => {
+			mockGet.mockResolvedValue({ data: { count: 1, next: null, previous: null, results: [{ id: 'h1', name: 'Navro\'z', date: '2026-03-21', recurring: true }] } })
+			const result = await deviceApi.getHolidays()
+			expect(mockGet).toHaveBeenCalledWith('/member/holidays/', { params: undefined })
+			expect(result.count).toBe(1)
+		})
+
+		it('passes date filter param', async () => {
+			mockGet.mockResolvedValue({ data: { count: 0, next: null, previous: null, results: [] } })
+			await deviceApi.getHolidays('2026-03-21')
+			expect(mockGet).toHaveBeenCalledWith('/member/holidays/', { params: { date: '2026-03-21' } })
+		})
+	})
+
+	describe('triggerEmergency', () => {
+		it('posts emergency alert to device', async () => {
+			mockPost.mockResolvedValue({ data: {} })
+			await deviceApi.triggerEmergency('device-1', 'panic')
+			expect(mockPost).toHaveBeenCalledWith('/devices/device-1/emergency/', { alert_type: 'panic' })
+		})
+	})
+
+	describe('resolveEmergency', () => {
+		it('posts resolve to alert endpoint', async () => {
+			mockPost.mockResolvedValue({ data: {} })
+			await deviceApi.resolveEmergency('alert-1')
+			expect(mockPost).toHaveBeenCalledWith('/member/alerts/alert-1/resolve/')
 		})
 	})
 })

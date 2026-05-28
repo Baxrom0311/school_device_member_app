@@ -74,6 +74,8 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 		pairs,
 		hasChanges,
 		isMutating,
+		daysMask,
+		setDaysMask,
 		handlePairChange,
 		addPair,
 		removePair,
@@ -113,6 +115,9 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 
 	const needsSync = schedule?.sync_pending || false
 	const validPairsCount = pairs.filter(p => p.entry && p.exit).length
+	const isStale = schedule?.synced_at
+		? Date.now() - new Date(schedule.synced_at).getTime() > 7 * 24 * 60 * 60 * 1000
+		: false
 
 	return (
 		<Card className='overflow-hidden'>
@@ -150,6 +155,12 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 						</CardDescription>
 					</div>
 					<div className='flex items-center gap-3'>
+						{isStale && (
+							<Badge variant='outline' className='gap-1 border-orange-500 text-orange-600'>
+								<AlertCircle className='h-3 w-3' />
+								7+ kun sinxronlanmagan
+							</Badge>
+						)}
 						{needsSync && (
 							<Badge variant='destructive' className='gap-1'>
 								<AlertCircle className='h-3 w-3' />
@@ -170,6 +181,29 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 			</CardHeader>
 
 			<CardContent className='p-4'>
+				{canEdit && (
+				<div className='mb-4'>
+					<p className='mb-2 text-sm font-medium text-muted-foreground'>Hafta kunlari</p>
+					<div className='flex gap-1'>
+						{['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'].map((day, i) => (
+							<button
+								key={i}
+								type='button'
+								className={cn(
+									'h-9 w-9 rounded-full text-sm font-medium transition-colors',
+									daysMask & (1 << i)
+										? 'bg-primary text-primary-foreground'
+										: 'bg-muted text-muted-foreground hover:bg-muted/80'
+								)}
+								onClick={() => setDaysMask(daysMask ^ (1 << i))}
+							>
+								{day}
+							</button>
+						))}
+					</div>
+				</div>
+				)}
+
 				{canEdit && (
 				<div className='mb-4 flex gap-2'>
 					<ScheduleGeneratorDialog onGenerate={handleGeneratedSchedule} />

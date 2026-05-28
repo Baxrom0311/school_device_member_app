@@ -161,7 +161,7 @@ export const deviceApi = {
 	// Get user's devices (typically just one)
 	getMyDevices: async (): Promise<DeviceListResponse> => {
 		const response = await apiClient.get<DeviceListResponse>(
-			'/devices/my_devices/'
+			'/member/my-devices/'
 		)
 		return response.data
 	},
@@ -189,8 +189,39 @@ export const deviceApi = {
 	},
 
 	// Ring device bell
-	ringBell: async (deviceId: string, duration: number = 5): Promise<void> => {
-		await apiClient.post(`/member/devices/${deviceId}/ring/`, { duration })
+	ringBell: async (deviceId: string, duration: number = 5): Promise<{ msg_id: string }> => {
+		const response = await apiClient.post<{ status: string; duration: number; msg_id: string }>(
+			`/member/devices/${deviceId}/ring/`, { duration }
+		)
+		return { msg_id: response.data.msg_id }
+	},
+
+	// Get command delivery status
+	getCommandStatus: async (msgId: string): Promise<{ status: string; sent_at: string; acked_at: string | null }> => {
+		const response = await apiClient.get<{ status: string; sent_at: string; acked_at: string | null }>(
+			`/member/commands/${msgId}/status/`
+		)
+		return response.data
+	},
+
+	// Poll command status until delivered/failed/timeout
+	pollCommandStatus: (msgId: string, onUpdate: (status: string) => void): (() => void) => {
+		let attempts = 0
+		const maxAttempts = 15
+		const interval = setInterval(async () => {
+			attempts++
+			try {
+				const data = await deviceApi.getCommandStatus(msgId)
+				if (data.status !== 'sent' || attempts >= maxAttempts) {
+					clearInterval(interval)
+					onUpdate(data.status)
+				}
+			} catch {
+				clearInterval(interval)
+				onUpdate('failed')
+			}
+		}, 2000)
+		return () => clearInterval(interval)
 	},
 
 	// Get device schedule (OneToOne - each device has one schedule)

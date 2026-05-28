@@ -14,6 +14,11 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated/schedules'
+import { Route as AuthenticatedProvisionRouteImport } from './routes/_authenticated/provision'
+import { Route as AuthenticatedHolidaysRouteImport } from './routes/_authenticated/holidays'
+import { Route as AuthenticatedDeviceHealthRouteImport } from './routes/_authenticated/device-health'
+import { Route as AuthenticatedBellLogsRouteImport } from './routes/_authenticated/bell-logs'
+import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
 import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
 import { Route as AuthRegisterRouteImport } from './routes/_auth/register'
@@ -41,6 +46,32 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedSchedulesRoute = AuthenticatedSchedulesRouteImport.update({
   id: '/schedules',
   path: '/schedules',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedProvisionRoute = AuthenticatedProvisionRouteImport.update({
+  id: '/provision',
+  path: '/provision',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHolidaysRoute = AuthenticatedHolidaysRouteImport.update({
+  id: '/holidays',
+  path: '/holidays',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDeviceHealthRoute =
+  AuthenticatedDeviceHealthRouteImport.update({
+    id: '/device-health',
+    path: '/device-health',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedBellLogsRoute = AuthenticatedBellLogsRouteImport.update({
+  id: '/bell-logs',
+  path: '/bell-logs',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
@@ -76,6 +107,11 @@ export interface FileRoutesByFullPath {
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-email': typeof AuthVerifyEmailRoute
+  '/alerts': typeof AuthenticatedAlertsRoute
+  '/bell-logs': typeof AuthenticatedBellLogsRoute
+  '/device-health': typeof AuthenticatedDeviceHealthRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
+  '/provision': typeof AuthenticatedProvisionRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
 }
@@ -86,6 +122,11 @@ export interface FileRoutesByTo {
   '/register': typeof AuthRegisterRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-email': typeof AuthVerifyEmailRoute
+  '/alerts': typeof AuthenticatedAlertsRoute
+  '/bell-logs': typeof AuthenticatedBellLogsRoute
+  '/device-health': typeof AuthenticatedDeviceHealthRoute
+  '/holidays': typeof AuthenticatedHolidaysRoute
+  '/provision': typeof AuthenticatedProvisionRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
 }
@@ -98,6 +139,11 @@ export interface FileRoutesById {
   '/_auth/register': typeof AuthRegisterRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/verify-email': typeof AuthVerifyEmailRoute
+  '/_authenticated/alerts': typeof AuthenticatedAlertsRoute
+  '/_authenticated/bell-logs': typeof AuthenticatedBellLogsRoute
+  '/_authenticated/device-health': typeof AuthenticatedDeviceHealthRoute
+  '/_authenticated/holidays': typeof AuthenticatedHolidaysRoute
+  '/_authenticated/provision': typeof AuthenticatedProvisionRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -111,6 +157,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/verify-email'
+    | '/alerts'
+    | '/bell-logs'
+    | '/device-health'
+    | '/holidays'
+    | '/provision'
     | '/schedules'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -121,6 +172,11 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/verify-email'
+    | '/alerts'
+    | '/bell-logs'
+    | '/device-health'
+    | '/holidays'
+    | '/provision'
     | '/schedules'
     | '/settings'
   id:
@@ -132,6 +188,11 @@ export interface FileRouteTypes {
     | '/_auth/register'
     | '/_auth/reset-password'
     | '/_auth/verify-email'
+    | '/_authenticated/alerts'
+    | '/_authenticated/bell-logs'
+    | '/_authenticated/device-health'
+    | '/_authenticated/holidays'
+    | '/_authenticated/provision'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
     | '/_authenticated/'
@@ -177,6 +238,41 @@ declare module '@tanstack/react-router' {
       path: '/schedules'
       fullPath: '/schedules'
       preLoaderRoute: typeof AuthenticatedSchedulesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/provision': {
+      id: '/_authenticated/provision'
+      path: '/provision'
+      fullPath: '/provision'
+      preLoaderRoute: typeof AuthenticatedProvisionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/holidays': {
+      id: '/_authenticated/holidays'
+      path: '/holidays'
+      fullPath: '/holidays'
+      preLoaderRoute: typeof AuthenticatedHolidaysRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/device-health': {
+      id: '/_authenticated/device-health'
+      path: '/device-health'
+      fullPath: '/device-health'
+      preLoaderRoute: typeof AuthenticatedDeviceHealthRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/bell-logs': {
+      id: '/_authenticated/bell-logs'
+      path: '/bell-logs'
+      fullPath: '/bell-logs'
+      preLoaderRoute: typeof AuthenticatedBellLogsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/alerts': {
+      id: '/_authenticated/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AuthenticatedAlertsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_auth/verify-email': {
@@ -236,12 +332,22 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAlertsRoute: typeof AuthenticatedAlertsRoute
+  AuthenticatedBellLogsRoute: typeof AuthenticatedBellLogsRoute
+  AuthenticatedDeviceHealthRoute: typeof AuthenticatedDeviceHealthRoute
+  AuthenticatedHolidaysRoute: typeof AuthenticatedHolidaysRoute
+  AuthenticatedProvisionRoute: typeof AuthenticatedProvisionRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAlertsRoute: AuthenticatedAlertsRoute,
+  AuthenticatedBellLogsRoute: AuthenticatedBellLogsRoute,
+  AuthenticatedDeviceHealthRoute: AuthenticatedDeviceHealthRoute,
+  AuthenticatedHolidaysRoute: AuthenticatedHolidaysRoute,
+  AuthenticatedProvisionRoute: AuthenticatedProvisionRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
