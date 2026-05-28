@@ -71,6 +71,10 @@ function SchedulesPage() {
 		pairs,
 		isActive,
 		setIsActive,
+		daysMask,
+		setDaysMask,
+		bellDuration,
+		setBellDuration,
 		hasChanges,
 		isMutating,
 		handlePairChange,
@@ -166,6 +170,39 @@ function SchedulesPage() {
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Hafta kunlari */}
+			<Card>
+				<CardContent className='py-4'>
+					<div className='space-y-2'>
+						<Label className='text-sm font-medium'>Hafta kunlari</Label>
+						<DaysSelector value={daysMask} onChange={setDaysMask} disabled={!canEdit} />
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Qo'ng'iroq davomiyligi */}
+			<Card>
+				<CardContent className='py-4'>
+					<div className='space-y-2'>
+						<Label className='text-sm font-medium'>Qo&apos;ng&apos;iroq davomiyligi (soniya)</Label>
+						<div className='flex items-center gap-3'>
+							<Input
+								type='number'
+								min={1}
+								max={30}
+								value={bellDuration / 1000}
+								onChange={e => setBellDuration(Math.max(500, Math.min(30000, Number(e.target.value) * 1000)))}
+								disabled={!canEdit}
+								className='w-24'
+							/>
+							<span className='text-sm text-muted-foreground'>
+								{bellDuration / 1000} soniya
+							</span>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			<Card className='overflow-hidden'>
 				<CardHeader className='bg-muted/30 pb-4'>
@@ -403,6 +440,32 @@ function SchedulesPage() {
 					)}
 				</CardContent>
 			</Card>
+		</div>
+	)
+}
+
+const DAYS = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya']
+
+function DaysSelector({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
+	return (
+		<div className='flex gap-1'>
+			{DAYS.map((day, i) => (
+				<button
+					key={i}
+					type='button'
+					disabled={disabled}
+					className={cn(
+						'h-9 w-9 rounded-full text-sm font-medium transition-colors',
+						value & (1 << i)
+							? 'bg-primary text-primary-foreground'
+							: 'bg-muted text-muted-foreground',
+						disabled && 'opacity-50 cursor-not-allowed'
+					)}
+					onClick={() => onChange(value ^ (1 << i))}
+				>
+					{day}
+				</button>
+			))}
 		</div>
 	)
 }

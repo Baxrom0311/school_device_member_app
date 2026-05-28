@@ -17,15 +17,19 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 	const queryClient = useQueryClient()
 	const [pairs, setPairs] = useState<LessonPair[]>([])
 	const [isActive, setIsActive] = useState(true)
+	const [daysMask, setDaysMask] = useState(0x1f)
+	const [bellDuration, setBellDuration] = useState(3000)
 	const prevScheduleRef = useRef<string | null>(null)
 
 	// Sync from schedule to local state when schedule data changes
-	const scheduleKey = schedule ? `${schedule.id}-${schedule.times.join(',')}` : null
+	const scheduleKey = schedule ? `${schedule.id}-${schedule.times.join(',')}-${schedule.days_mask}-${schedule.bell_duration}` : null
 	if (scheduleKey !== prevScheduleRef.current) {
 		prevScheduleRef.current = scheduleKey
 		if (schedule) {
 			setPairs(timesToPairs(schedule.times))
 			setIsActive(schedule.is_active)
+			setDaysMask(schedule.days_mask ?? 0x1f)
+			setBellDuration(schedule.bell_duration ?? 3000)
 		}
 	}
 
@@ -35,11 +39,11 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 		}
 		const currentTimes = pairsToTimes(pairs).sort().join(',')
 		const originalTimes = [...schedule.times].sort().join(',')
-		return currentTimes !== originalTimes || isActive !== schedule.is_active
-	}, [pairs, isActive, schedule])
+		return currentTimes !== originalTimes || isActive !== schedule.is_active || daysMask !== (schedule.days_mask ?? 0x1f) || bellDuration !== (schedule.bell_duration ?? 3000)
+	}, [pairs, isActive, daysMask, bellDuration, schedule])
 
 	const updateMutation = useMutation({
-		mutationFn: (data: { times: string[]; is_active: boolean }) => {
+		mutationFn: (data: { times: string[]; is_active: boolean; days_mask: number; bell_duration: number }) => {
 			if (schedule?.id) {
 				return deviceApi.updateSchedule(schedule.id, data)
 			}
@@ -53,6 +57,8 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 					...schedule,
 					times: data.times,
 					is_active: data.is_active,
+					days_mask: data.days_mask,
+					bell_duration: data.bell_duration,
 				})
 			}
 			return { previousSchedule }
@@ -113,7 +119,7 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 	}
 
 	const handleSave = () => {
-		updateMutation.mutate({ times: pairsToTimes(pairs), is_active: isActive })
+		updateMutation.mutate({ times: pairsToTimes(pairs), is_active: isActive, days_mask: daysMask, bell_duration: bellDuration })
 	}
 
 	const handleSync = () => {
@@ -126,6 +132,10 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 		pairs,
 		isActive,
 		setIsActive,
+		daysMask,
+		setDaysMask,
+		bellDuration,
+		setBellDuration,
 		hasChanges,
 		isMutating,
 		updateMutation,
