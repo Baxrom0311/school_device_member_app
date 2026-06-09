@@ -17,6 +17,7 @@ const apiClient = axios.create({
 })
 
 let isRefreshing = false
+let refreshPromise: Promise<string | null> | null = null
 let failedQueue: Array<{
 	resolve: (value?: unknown) => void
 	reject: (reason?: unknown) => void
@@ -33,42 +34,41 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 	failedQueue = []
 }
 
+const doRefresh = async (): Promise<string | null> => {
+	const refreshToken = getCookie('refresh_token')
+	if (!refreshToken || isTokenExpired(refreshToken)) return null
+	const response = await axios.post(
+		`${API_BASE_URL}/auth/refresh/`,
+		{ refresh: refreshToken }
+	)
+	const newToken = response.data.access
+	setCookie('access_token', newToken)
+	useAuthStore.setState({ isAuthenticated: true })
+	return newToken
+}
+
 // Request interceptor - add auth token (with expiry pre-check)
 apiClient.interceptors.request.use(async config => {
 	let token = getCookie('access_token')
 
-	// If access token is expired, try refreshing before sending request
-	// Use the same isRefreshing mutex to prevent concurrent refresh attempts
 	if (token && isTokenExpired(token) && !config.url?.includes('/auth/')) {
-		if (isRefreshing) {
-			// Wait for the in-flight refresh to complete
-			token = await new Promise<string | null>((resolve, reject) => {
-				failedQueue.push({
-					resolve: (t) => resolve(t as string),
-					reject,
+		if (!isRefreshing) {
+			isRefreshing = true
+			refreshPromise = doRefresh()
+				.then((newToken) => {
+					processQueue(null, newToken)
+					return newToken
 				})
-			})
-		} else {
-			const refreshToken = getCookie('refresh_token')
-			if (refreshToken && !isTokenExpired(refreshToken)) {
-				isRefreshing = true
-				try {
-					const response = await axios.post(
-						`${API_BASE_URL}/auth/refresh/`,
-						{ refresh: refreshToken }
-					)
-					token = response.data.access
-					setCookie('access_token', token!)
-					useAuthStore.setState({ isAuthenticated: true })
-					processQueue(null, token)
-				} catch {
-					processQueue(new Error('refresh failed'), null)
-					// Let the response interceptor handle 401
-				} finally {
+				.catch((err) => {
+					processQueue(err instanceof Error ? err : new Error('refresh failed'), null)
+					return null
+				})
+				.finally(() => {
 					isRefreshing = false
-				}
-			}
+					refreshPromise = null
+				})
 		}
+		token = await (refreshPromise ?? Promise.resolve(null))
 	}
 
 	if (token) {
