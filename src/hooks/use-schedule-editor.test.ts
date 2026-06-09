@@ -32,6 +32,7 @@ const mockSchedule: Schedule = {
   version: 1,
   synced_at: null,
   sync_pending: false,
+  bell_duration: 3000,
   created_at: '2026-01-01',
   updated_at: '2026-01-01',
 }
