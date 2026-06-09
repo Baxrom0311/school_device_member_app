@@ -27,12 +27,13 @@ const alertConfig: Record<AlertType, { label: string; icon: typeof AlertTriangle
   emergency_ring: { label: 'Favqulodda signal', icon: Radio, variant: 'default' },
   offline: { label: 'Offline', icon: WifiOff, variant: 'secondary' },
   rtc_drift: { label: 'RTC vaqt farqi', icon: Clock, variant: 'secondary' },
-  rtc_battery: { label: 'RTC batareya zaiflashgan', icon: Battery, variant: 'destructive' },
+  rtc_battery_dead: { label: 'RTC batareya almashtirish kerak', icon: Battery, variant: 'destructive' },
+  schedule_stale: { label: 'Jadval sinxronlanmagan', icon: Clock, variant: 'secondary' },
 }
 
 function getAlertDescription(alert: DeviceAlert): string | null {
   const name = alert.device_name || alert.device_id
-  if (alert.alert_type === 'rtc_battery') {
+  if (alert.alert_type === 'rtc_battery_dead') {
     const days = alert.metadata?.consecutive_days
     const daysText = days ? ` (${days} kun ketma-ket)` : ''
     return name ? `${name} ning RTC batareykasini almashtiring${daysText}` : `RTC batareykasini almashtiring${daysText}`

@@ -12,6 +12,7 @@ export interface Device {
 	status: DeviceStatus
 	firmware_version: string
 	rtc_synced: boolean
+	rtc_battery_status?: 'ok' | 'low' | 'dead'
 	rtc_battery_dead: boolean
 	rtc_drift_sec: number | null
 	schedule_stale: boolean
@@ -68,6 +69,16 @@ export interface Schedule {
 	updated_at: string
 }
 
+export interface ScheduleHistory {
+	id: string
+	version: number
+	times: string[]
+	times_count: number
+	days_mask: number
+	bell_duration: number
+	created_at: string
+}
+
 export interface ScheduleUpdateRequest {
 	times?: string[]
 	days_mask?: number
@@ -77,7 +88,7 @@ export interface ScheduleUpdateRequest {
 }
 
 // ============== Alert Types ==============
-export type AlertType = 'panic' | 'lockdown' | 'emergency_ring' | 'offline' | 'rtc_drift' | 'rtc_battery'
+export type AlertType = 'panic' | 'lockdown' | 'emergency_ring' | 'offline' | 'rtc_drift' | 'rtc_battery_dead' | 'schedule_stale'
 
 export interface AlertMetadata {
 	drift_sec?: number
@@ -259,6 +270,14 @@ export const deviceApi = {
 	// Sync schedule to device
 	syncSchedule: async (scheduleId: string): Promise<void> => {
 		await apiClient.post(`/schedules/${scheduleId}/sync_to_device/`)
+	},
+
+	// Get schedule history (previous versions)
+	getScheduleHistory: async (deviceId: string): Promise<ScheduleHistory[]> => {
+		const response = await apiClient.get<{ results: ScheduleHistory[] } | ScheduleHistory[]>(
+			`/member/schedule-history/${deviceId}/`
+		)
+		return Array.isArray(response.data) ? response.data : response.data.results
 	},
 
 	// Get bell log history for a device

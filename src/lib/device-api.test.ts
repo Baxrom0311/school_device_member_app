@@ -24,7 +24,7 @@ describe('deviceApi', () => {
 		it('calls correct endpoint', async () => {
 			mockGet.mockResolvedValue({ data: { count: 0, results: [] } })
 			const result = await deviceApi.getMyDevices()
-			expect(mockGet).toHaveBeenCalledWith('/devices/my_devices/')
+			expect(mockGet).toHaveBeenCalledWith('/member/my-devices/')
 			expect(result.count).toBe(0)
 		})
 	})
@@ -66,17 +66,17 @@ describe('deviceApi', () => {
 		it('sends ring command with default duration', async () => {
 			mockPost.mockResolvedValue({ data: {} })
 			await deviceApi.ringBell('device-1')
-			expect(mockPost).toHaveBeenCalledWith('/devices/device-1/ring/', {
-				duration: 5,
-			})
+				expect(mockPost).toHaveBeenCalledWith('/member/devices/device-1/ring/', {
+					duration: 5,
+				})
 		})
 
 		it('sends ring command with custom duration', async () => {
 			mockPost.mockResolvedValue({ data: {} })
 			await deviceApi.ringBell('device-1', 10)
-			expect(mockPost).toHaveBeenCalledWith('/devices/device-1/ring/', {
-				duration: 10,
-			})
+				expect(mockPost).toHaveBeenCalledWith('/member/devices/device-1/ring/', {
+					duration: 10,
+				})
 		})
 	})
 
@@ -164,7 +164,7 @@ describe('deviceApi', () => {
 		it('posts emergency alert to device', async () => {
 			mockPost.mockResolvedValue({ data: {} })
 			await deviceApi.triggerEmergency('device-1', 'panic')
-			expect(mockPost).toHaveBeenCalledWith('/devices/device-1/emergency/', { alert_type: 'panic' })
+				expect(mockPost).toHaveBeenCalledWith('/member/devices/device-1/emergency/', { alert_type: 'panic' })
 		})
 	})
 

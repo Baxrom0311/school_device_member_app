@@ -5,7 +5,7 @@ import {
 	pairsToTimes,
 } from '@/lib/schedule-utils'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 interface UseScheduleEditorOptions {
@@ -23,7 +23,8 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 
 	// Sync from schedule to local state when schedule data changes
 	const scheduleKey = schedule ? `${schedule.id}-${schedule.times.join(',')}-${schedule.days_mask}-${schedule.bell_duration}` : null
-	if (scheduleKey !== prevScheduleRef.current) {
+	useEffect(() => {
+		if (scheduleKey === prevScheduleRef.current) return
 		prevScheduleRef.current = scheduleKey
 		if (schedule) {
 			setPairs(timesToPairs(schedule.times))
@@ -31,7 +32,7 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 			setDaysMask(schedule.days_mask ?? 0x1f)
 			setBellDuration(schedule.bell_duration ?? 3000)
 		}
-	}
+	}, [schedule, scheduleKey])
 
 	const hasChanges = useMemo(() => {
 		if (!schedule) {

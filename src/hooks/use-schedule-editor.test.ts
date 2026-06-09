@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { useScheduleEditor } from './use-schedule-editor'
@@ -48,16 +48,18 @@ describe('useScheduleEditor', () => {
     vi.clearAllMocks()
   })
 
-  it('initializes pairs from schedule times', () => {
+  it('initializes pairs from schedule times', async () => {
     const { result } = renderHook(
       () => useScheduleEditor({ deviceId: 'd1', schedule: mockSchedule }),
       { wrapper: createWrapper() }
     )
 
-    expect(result.current.pairs).toEqual([
-      { entry: '08:00', exit: '08:45' },
-      { entry: '09:00', exit: '09:45' },
-    ])
+    await waitFor(() => {
+      expect(result.current.pairs).toEqual([
+        { entry: '08:00', exit: '08:45' },
+        { entry: '09:00', exit: '09:45' },
+      ])
+    })
     expect(result.current.isActive).toBe(true)
     expect(result.current.hasChanges).toBe(false)
   })
@@ -134,12 +136,14 @@ describe('useScheduleEditor', () => {
     act(() => { result.current.handlePairChange(0, 'entry', '07:30') })
     await act(async () => { result.current.handleSave() })
 
-    await vi.waitFor(() => {
-      expect(deviceApi.updateSchedule).toHaveBeenCalledWith('s1', {
-        times: ['07:30', '08:45', '09:00', '09:45'],
-        is_active: true,
-      })
-    })
+	    await vi.waitFor(() => {
+	      expect(deviceApi.updateSchedule).toHaveBeenCalledWith('s1', {
+	        times: ['07:30', '08:45', '09:00', '09:45'],
+	        is_active: true,
+	        days_mask: 0x1f,
+	        bell_duration: 3000,
+	      })
+	    })
   })
 
   it('calls createSchedule on save when no schedule exists', async () => {
@@ -155,11 +159,13 @@ describe('useScheduleEditor', () => {
     act(() => { result.current.handlePairChange(0, 'exit', '08:45') })
     await act(async () => { result.current.handleSave() })
 
-    await vi.waitFor(() => {
-      expect(deviceApi.createSchedule).toHaveBeenCalledWith('d1', {
-        times: ['08:00', '08:45'],
-        is_active: true,
-      })
-    })
+	    await vi.waitFor(() => {
+	      expect(deviceApi.createSchedule).toHaveBeenCalledWith('d1', {
+	        times: ['08:00', '08:45'],
+	        is_active: true,
+	        days_mask: 0x1f,
+	        bell_duration: 3000,
+	      })
+	    })
   })
 })

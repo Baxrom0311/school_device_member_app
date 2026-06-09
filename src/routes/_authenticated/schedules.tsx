@@ -19,6 +19,7 @@ import {
 	TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ScheduleGeneratorDialog } from '@/components/schedule-generator-dialog'
+import { ScheduleHistoryDialog } from '@/components/schedule-history-dialog'
 import { useScheduleEditor } from '@/hooks/use-schedule-editor'
 import { deviceApi } from '@/lib/device-api'
 import { calculateDuration } from '@/lib/schedule-utils'
@@ -158,6 +159,7 @@ function SchedulesPage() {
 						</p>
 					</div>
 				</div>
+				<ScheduleHistoryDialog deviceId={device.id} />
 			</div>
 
 			{needsSync && (
