@@ -10,24 +10,42 @@ vi.mock('@/lib/jwt', () => ({
   isTokenExpired: vi.fn(() => false),
 }))
 
+vi.mock('@/lib/api-client', () => ({
+  refreshAccessToken: vi.fn(async () => 'refreshed-token'),
+  default: {},
+}))
+
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }))
 
 import { getCookie } from '@/lib/cookies'
 import { isTokenExpired } from '@/lib/jwt'
+import { refreshAccessToken } from '@/lib/api-client'
 import { toast } from 'sonner'
 
 type MockWs = {
   onopen?: () => void
   onmessage?: (e: { data: string }) => void
-  onclose?: () => void
+  onclose?: (e?: { code?: number }) => void
   onerror?: () => void
   close: ReturnType<typeof vi.fn>
   url?: string
 }
 
 let mockWsInstances: MockWs[] = []
+
+/**
+ * Flush any pending microtasks so the async `connect()` chain
+ * (cookie read → optional refresh → new WebSocket) completes before
+ * we make assertions.
+ */
+async function flushAsync() {
+  // Run microtasks
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+}
 
 describe('useEmergencyWs', () => {
   beforeEach(() => {
@@ -40,6 +58,7 @@ describe('useEmergencyWs', () => {
     vi.useFakeTimers()
     vi.mocked(getCookie).mockReturnValue('test-token')
     vi.mocked(isTokenExpired).mockReturnValue(false)
+    vi.mocked(refreshAccessToken).mockResolvedValue('refreshed-token')
   })
 
   afterEach(() => {
@@ -48,39 +67,55 @@ describe('useEmergencyWs', () => {
     vi.clearAllMocks()
   })
 
-  it('connects with token from cookie', () => {
+  it('connects with token from cookie', async () => {
     renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
     expect(mockWsInstances).toHaveLength(1)
     expect(mockWsInstances[0].url).toContain('token=test-token')
   })
 
-  it('does not connect when no token', () => {
+  it('does not connect when no token', async () => {
     vi.mocked(getCookie).mockReturnValue(null as unknown as string)
     renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
     expect(mockWsInstances).toHaveLength(0)
   })
 
-  it('does not connect when disabled', () => {
+  it('does not connect when disabled', async () => {
     renderHook(() => useEmergencyWs({ enabled: false }))
+    await act(async () => { await flushAsync() })
     expect(mockWsInstances).toHaveLength(0)
   })
 
-  it('does not connect when token is expired', () => {
+  it('refreshes the token before connecting when current token is expired', async () => {
     vi.mocked(isTokenExpired).mockReturnValue(true)
     renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
+    expect(refreshAccessToken).toHaveBeenCalled()
+    expect(mockWsInstances).toHaveLength(1)
+    expect(mockWsInstances[0].url).toContain('token=refreshed-token')
+  })
+
+  it('does not connect when token refresh fails', async () => {
+    vi.mocked(isTokenExpired).mockReturnValue(true)
+    vi.mocked(refreshAccessToken).mockResolvedValueOnce(null)
+    renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
     expect(mockWsInstances).toHaveLength(0)
   })
 
-  it('sets connected to true on open', () => {
+  it('sets connected to true on open', async () => {
     const { result } = renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
     expect(result.current.connected).toBe(false)
     act(() => { mockWsInstances[0].onopen?.() })
     expect(result.current.connected).toBe(true)
   })
 
-  it('calls onAlert and shows toast on alert message', () => {
+  it('calls onAlert and shows toast on alert message', async () => {
     const onAlert = vi.fn()
     renderHook(() => useEmergencyWs({ onAlert }))
+    await act(async () => { await flushAsync() })
 
     act(() => { mockWsInstances[0].onopen?.() })
 
@@ -93,9 +128,10 @@ describe('useEmergencyWs', () => {
     expect(toast.error).toHaveBeenCalledWith('🚨 Panic signal!', { duration: 10000 })
   })
 
-  it('calls onResolved and shows success toast on resolved message', () => {
+  it('calls onResolved and shows success toast on resolved message', async () => {
     const onResolved = vi.fn()
     renderHook(() => useEmergencyWs({ onResolved }))
+    await act(async () => { await flushAsync() })
 
     act(() => { mockWsInstances[0].onopen?.() })
 
@@ -108,48 +144,53 @@ describe('useEmergencyWs', () => {
     expect(toast.success).toHaveBeenCalledWith('✅ Favqulodda holat bekor qilindi', { duration: 5000 })
   })
 
-  it('reconnects with exponential backoff on close', () => {
+  it('reconnects with exponential backoff on close', async () => {
     renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
 
     // First close → reconnect after 1s
-    act(() => { mockWsInstances[0].onclose?.() })
+    act(() => { mockWsInstances[0].onclose?.({ code: 1006 }) })
     expect(mockWsInstances).toHaveLength(1)
 
-    act(() => { vi.advanceTimersByTime(1000) })
+    await act(async () => { vi.advanceTimersByTime(1000); await flushAsync() })
     expect(mockWsInstances).toHaveLength(2)
 
     // Second close → reconnect after 2s
-    act(() => { mockWsInstances[1].onclose?.() })
-    act(() => { vi.advanceTimersByTime(1000) })
+    act(() => { mockWsInstances[1].onclose?.({ code: 1006 }) })
+    await act(async () => { vi.advanceTimersByTime(1000); await flushAsync() })
     expect(mockWsInstances).toHaveLength(2) // not yet
-    act(() => { vi.advanceTimersByTime(1000) })
+    await act(async () => { vi.advanceTimersByTime(1000); await flushAsync() })
     expect(mockWsInstances).toHaveLength(3)
   })
 
-  it('resets retry count on successful open', () => {
+  it('refreshes the token and reconnects quickly on 4401 auth failure', async () => {
     renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
+    expect(mockWsInstances).toHaveLength(1)
 
-    act(() => { mockWsInstances[0].onclose?.() })
-    act(() => { vi.advanceTimersByTime(1000) })
+    // Simulate the backend closing with code 4401 (token rejected)
+    vi.mocked(refreshAccessToken).mockClear()
+    vi.mocked(isTokenExpired).mockReturnValue(true)
+    act(() => { mockWsInstances[0].onclose?.({ code: 4401 }) })
 
-    // Open successfully — retries reset
-    act(() => { mockWsInstances[1].onopen?.() })
-
-    // Close again → should be 1s delay (reset)
-    act(() => { mockWsInstances[1].onclose?.() })
-    act(() => { vi.advanceTimersByTime(1000) })
-    expect(mockWsInstances).toHaveLength(3)
+    // Auth failure path should retry after a short 500ms delay, not seconds
+    await act(async () => { vi.advanceTimersByTime(500); await flushAsync() })
+    expect(refreshAccessToken).toHaveBeenCalled()
+    expect(mockWsInstances).toHaveLength(2)
+    expect(mockWsInstances[1].url).toContain('token=refreshed-token')
   })
 
-  it('closes WebSocket on unmount', () => {
+  it('closes WebSocket on unmount', async () => {
     const { unmount } = renderHook(() => useEmergencyWs())
+    await act(async () => { await flushAsync() })
     unmount()
     expect(mockWsInstances[0].close).toHaveBeenCalled()
   })
 
-  it('ignores malformed messages', () => {
+  it('ignores malformed messages', async () => {
     const onAlert = vi.fn()
     renderHook(() => useEmergencyWs({ onAlert }))
+    await act(async () => { await flushAsync() })
 
     act(() => {
       mockWsInstances[0].onmessage?.({ data: 'not json' })

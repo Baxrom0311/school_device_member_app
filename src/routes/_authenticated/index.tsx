@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { deviceApi, type Device } from '@/lib/device-api'
+import { deviceApi, type Device, type DeviceClaimResponse } from '@/lib/device-api'
 import { useAuthStore } from '@/stores/auth-store'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -276,17 +276,17 @@ function DeviceDashboard({ device }: { device: Device }) {
 					tabIndex={0}
 					aria-label="Qo'ng'iroq chalish"
 					className='cursor-pointer transition-colors hover:bg-accent/50'
-					onClick={() =>
-						!ringMutation.isPending &&
-						device.status === 'active' &&
-						setRingConfirmOpen(true)
-					}
+					onClick={() => {
+						if (!ringMutation.isPending && device.status === 'active') {
+							setRingConfirmOpen(true)
+						}
+					}}
 					onKeyDown={e => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
-							!ringMutation.isPending &&
-								device.status === 'active' &&
+							if (!ringMutation.isPending && device.status === 'active') {
 								setRingConfirmOpen(true)
+							}
 						}
 					}}
 				>
@@ -419,17 +419,17 @@ function DeviceDashboard({ device }: { device: Device }) {
 						tabIndex={0}
 						aria-label="Favqulodda signal yuborish"
 						className='cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-950 border-red-200 dark:border-red-900'
-						onClick={() =>
-							!emergencyMutation.isPending &&
-							device.status === 'active' &&
-							setEmergencyConfirmOpen(true)
-						}
+						onClick={() => {
+							if (!emergencyMutation.isPending && device.status === 'active') {
+								setEmergencyConfirmOpen(true)
+							}
+						}}
 						onKeyDown={e => {
 							if (e.key === 'Enter' || e.key === ' ') {
 								e.preventDefault()
-								!emergencyMutation.isPending &&
-									device.status === 'active' &&
+								if (!emergencyMutation.isPending && device.status === 'active') {
 									setEmergencyConfirmOpen(true)
+								}
 							}
 						}}
 					>
@@ -553,7 +553,7 @@ interface ClaimDeviceCardProps {
 function ClaimDeviceCard({ userName, organizationName }: ClaimDeviceCardProps) {
 	const queryClient = useQueryClient()
 	const [isLoading, setIsLoading] = useState(false)
-	const [claimedDevice, setClaimedDevice] = useState<any>(null)
+	const [claimedDevice, setClaimedDevice] = useState<DeviceClaimResponse['device'] | null>(null)
 
 	const form = useForm<ClaimFormData>({
 		resolver: zodResolver(claimSchema),

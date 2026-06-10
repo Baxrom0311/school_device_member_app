@@ -89,9 +89,9 @@ function ProvisionPage() {
       const svc = await srv.getPrimaryService(SERVICE_UUID)
       setService(svc)
       setStatus('connected')
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
-      setError(e.message || 'BLE connection failed')
+      setError(e instanceof Error ? e.message : 'BLE connection failed')
       setStatus('error')
     }
   }
@@ -128,8 +128,8 @@ function ProvisionPage() {
 
       setStatus('done')
       server?.disconnect()
-    } catch (e: any) {
-      setError(e.message || 'Failed to send credentials')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to send credentials')
       setStatus('error')
     }
   }

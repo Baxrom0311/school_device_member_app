@@ -49,7 +49,9 @@ function AlertsPage() {
   const { user } = useAuthStore()
   const canResolve = user?.role === 'ADMIN' || user?.role === 'SCHOOL_ADMIN'
 
-  const onAlert = useCallback((_alert: DeviceAlert) => {
+  // The WS callback receives the alert payload, but here we only care about
+  // signalling React Query to refetch; the data is hydrated server-side.
+  const onAlert = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['alerts'] })
   }, [queryClient])
 

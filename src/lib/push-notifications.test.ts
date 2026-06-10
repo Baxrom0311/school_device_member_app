@@ -12,6 +12,25 @@ import apiClient from './api-client'
 const mockGet = vi.mocked(apiClient.get)
 const mockPost = vi.mocked(apiClient.post)
 
+// Strongly-typed helpers for tweaking the global `window` object in tests.
+// Avoids `any` and keeps the assertions in the test bodies type-safe.
+type WindowWithPush = Window & {
+	PushManager?: typeof PushManager
+}
+const testWindow = window as unknown as WindowWithPush
+
+function detachPushManager(): typeof PushManager | undefined {
+	const original = testWindow.PushManager
+	delete testWindow.PushManager
+	return original
+}
+
+function restorePushManager(original: typeof PushManager | undefined): void {
+	if (original) {
+		testWindow.PushManager = original
+	}
+}
+
 describe('push-notifications', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -20,9 +39,7 @@ describe('push-notifications', () => {
 
 	describe('subscribeToPush', () => {
 		it('returns unsupported when PushManager is missing', async () => {
-			// Remove PushManager from window
-			const originalPM = (window as any).PushManager
-			delete (window as any).PushManager
+			const originalPM = detachPushManager()
 
 			const { subscribeToPush } = await import('./push-notifications')
 			const result = await subscribeToPush()
@@ -32,22 +49,20 @@ describe('push-notifications', () => {
 				expect(result.error).toBe('unsupported')
 			}
 
-			// Restore
-			;(window as any).PushManager = originalPM
+			restorePushManager(originalPM)
 		})
 	})
 
 	describe('isPushSubscribed', () => {
 		it('returns false when PushManager is missing', async () => {
-			const originalPM = (window as any).PushManager
-			delete (window as any).PushManager
+			const originalPM = detachPushManager()
 
 			const { isPushSubscribed } = await import('./push-notifications')
 			const result = await isPushSubscribed()
 
 			expect(result).toBe(false)
 
-			;(window as any).PushManager = originalPM
+			restorePushManager(originalPM)
 		})
 	})
 

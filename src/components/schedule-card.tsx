@@ -65,6 +65,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 		data: schedule,
 		isLoading,
 		error,
+		dataUpdatedAt,
 	} = useQuery({
 		queryKey: ['schedule', device.id],
 		queryFn: () => deviceApi.getSchedule(device.id),
@@ -115,8 +116,10 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 
 	const needsSync = schedule?.sync_pending || false
 	const validPairsCount = pairs.filter(p => p.entry && p.exit).length
-	const isStale = schedule?.synced_at
-		? Date.now() - new Date(schedule.synced_at).getTime() > 7 * 24 * 60 * 60 * 1000
+	// Compare against the timestamp react-query stamped on the response so this
+	// stays a pure render computation (no Date.now()).
+	const isStale = schedule?.synced_at && dataUpdatedAt
+		? dataUpdatedAt - new Date(schedule.synced_at).getTime() > 7 * 24 * 60 * 60 * 1000
 		: false
 
 	return (

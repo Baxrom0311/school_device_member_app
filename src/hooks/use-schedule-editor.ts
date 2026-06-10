@@ -27,10 +27,12 @@ export function useScheduleEditor({ deviceId, schedule }: UseScheduleEditorOptio
 		if (scheduleKey === prevScheduleRef.current) return
 		prevScheduleRef.current = scheduleKey
 		if (schedule) {
+			/* eslint-disable react-hooks/set-state-in-effect -- syncing local editor state from external schedule prop */
 			setPairs(timesToPairs(schedule.times))
 			setIsActive(schedule.is_active)
 			setDaysMask(schedule.days_mask ?? 0x1f)
 			setBellDuration(schedule.bell_duration ?? 3000)
+			/* eslint-enable react-hooks/set-state-in-effect */
 		}
 	}, [schedule, scheduleKey])
 

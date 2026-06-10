@@ -83,10 +83,13 @@ export const useAuthStore = create<AuthState>()(
 				try {
 					const response = await apiClient.get('/auth/me/')
 					set({ user: response.data, isLoading: false })
-				} catch (error: any) {
+				} catch (error: unknown) {
 					set({ isLoading: false })
 					// Only logout on 401/403 — server errors should not clear session
-					const status = error?.response?.status
+					const status =
+						typeof error === 'object' && error !== null && 'response' in error
+							? (error as { response?: { status?: number } }).response?.status
+							: undefined
 					if (status === 401 || status === 403) {
 						get().logout()
 					}

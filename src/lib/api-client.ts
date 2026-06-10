@@ -47,28 +47,46 @@ const doRefresh = async (): Promise<string | null> => {
 	return newToken
 }
 
+/**
+ * Refresh the access token using the stored refresh token.
+ *
+ * Exposed for non-axios consumers (e.g. WebSocket hooks) that need a fresh
+ * token before connecting. Coalesces concurrent calls onto a single network
+ * request via the same promise the request interceptor uses.
+ *
+ * Returns the new access token, or null if no refresh token is available
+ * or the refresh attempt failed.
+ */
+export const refreshAccessToken = async (): Promise<string | null> => {
+	if (isRefreshing && refreshPromise) {
+		return refreshPromise
+	}
+	isRefreshing = true
+	refreshPromise = doRefresh()
+		.then(newToken => {
+			processQueue(null, newToken)
+			return newToken
+		})
+		.catch(err => {
+			processQueue(
+				err instanceof Error ? err : new Error('refresh failed'),
+				null
+			)
+			return null
+		})
+		.finally(() => {
+			isRefreshing = false
+			refreshPromise = null
+		})
+	return refreshPromise
+}
+
 // Request interceptor - add auth token (with expiry pre-check)
 apiClient.interceptors.request.use(async config => {
 	let token = getCookie('access_token')
 
 	if (token && isTokenExpired(token) && !config.url?.includes('/auth/')) {
-		if (!isRefreshing) {
-			isRefreshing = true
-			refreshPromise = doRefresh()
-				.then((newToken) => {
-					processQueue(null, newToken)
-					return newToken
-				})
-				.catch((err) => {
-					processQueue(err instanceof Error ? err : new Error('refresh failed'), null)
-					return null
-				})
-				.finally(() => {
-					isRefreshing = false
-					refreshPromise = null
-				})
-		}
-		token = await (refreshPromise ?? Promise.resolve(null))
+		token = await refreshAccessToken()
 	}
 
 	if (token) {
