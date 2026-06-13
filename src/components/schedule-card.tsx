@@ -161,7 +161,7 @@ export function ScheduleCard({ device }: ScheduleCardProps) {
 						{isStale && (
 							<Badge variant='outline' className='gap-1 border-orange-500 text-orange-600'>
 								<AlertCircle className='h-3 w-3' />
-								7+ kun sinxronlanmagan
+								Yangilanmagan
 							</Badge>
 						)}
 						{needsSync && (

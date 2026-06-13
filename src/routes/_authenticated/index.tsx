@@ -254,10 +254,10 @@ function DeviceDashboard({ device }: { device: Device }) {
 						<Calendar className="h-5 w-5 text-orange-600 shrink-0" />
 						<div>
 							<p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-								Jadval 7+ kun sinxronlanmagan
+								Jadval yangilanmagan
 							</p>
 							<p className="text-xs text-orange-600 dark:text-orange-400">
-								Qurilma eski jadval bilan ishlayapti. Internet ulanishini tekshiring.
+								Qurilmaga yangi jadval yuborilmagan. "Sinxronlash" tugmasini bosing.
 							</p>
 						</div>
 					</CardContent>

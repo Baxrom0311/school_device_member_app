@@ -177,7 +177,7 @@ function DeviceHealthPage() {
 				<CardContent className="space-y-3">
 					<Row
 						label="Jadval holati"
-						value={device.schedule_stale ? "7+ kun sinxronlanmagan" : "Yangilangan"}
+						value={device.schedule_stale ? "Yangilanmagan" : "Yangilangan"}
 						ok={!device.schedule_stale}
 						warn={device.schedule_stale}
 					/>
@@ -191,7 +191,7 @@ function DeviceHealthPage() {
 					{device.schedule_stale && (
 						<div className="mt-2 rounded-md bg-orange-50 dark:bg-orange-950 p-3 text-sm text-orange-700 dark:text-orange-300 flex items-start gap-2">
 							<AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-							<p>Jadval 7 kundan ko'proq sinxronlanmagan. Qurilma eski jadval bilan ishlayapti — qo'ng'iroq hali ham chaladi.</p>
+							<p>Qurilmaga yangi jadval yuborilmagan. "Sinxronlash" tugmasini bosing.</p>
 						</div>
 					)}
 				</CardContent>
